@@ -22,6 +22,12 @@ class Config(BaseModel):
     confluence_url: str = os.getenv("CONFLUENCE_URL", "")
     confluence_username: str = os.getenv("CONFLUENCE_USERNAME", "")
     confluence_api_token: str = os.getenv("CONFLUENCE_API_TOKEN", "")
+    confluence_token: str = os.getenv("CONFLUENCE_TOKEN", "")
+    
+    # JIRA settings (for Atlassian MCP Server)
+    jira_url: str = os.getenv("JIRA_URL", "")
+    jira_username: str = os.getenv("JIRA_USERNAME", "")
+    jira_token: str = os.getenv("JIRA_TOKEN", "")
     
     # MCP Server settings
     mcp_server_url: str = os.getenv("MCP_SERVER_URL", "")

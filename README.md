@@ -1,0 +1,2 @@
+# AutoGenerateAtlassianConfluenceWikiAgent
+Automated Atlassian Confluence Wiki Generator from Codebase

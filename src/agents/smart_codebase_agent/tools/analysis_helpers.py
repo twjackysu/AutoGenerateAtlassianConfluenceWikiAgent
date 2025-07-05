@@ -1,193 +1,9 @@
 import os
-import subprocess
-import asyncio
-from typing import List, Dict, Any, Optional
-from pathlib import Path
-import fnmatch
 import re
-from agents import Agent, function_tool
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
+from typing import List, Dict, Any
 
 
-@function_tool
-async def clone_github_repo(repo_url: str, local_path: str = None, branch: str = "main") -> str:
-    """
-    Clone a GitHub repository to local filesystem.
-    
-    Args:
-        repo_url: GitHub repository URL (e.g., 'https://github.com/user/repo.git' or 'user/repo')
-        local_path: Local directory path to clone to (optional, defaults to repo name)
-        branch: Branch to clone (default: 'main')
-    
-    Returns:
-        Path to the cloned repository
-    """
-    try:
-        if not repo_url.startswith('http'):
-            if '/' in repo_url:
-                repo_url = f"https://github.com/{repo_url}.git"
-            else:
-                return f"Invalid repo format: {repo_url}. Use 'user/repo' or full URL."
-        
-        if local_path is None:
-            repo_name = repo_url.split('/')[-1].replace('.git', '')
-            local_path = f"./repos/{repo_name}"
-        
-        Path(local_path).parent.mkdir(parents=True, exist_ok=True)
-        
-        if os.path.exists(local_path):
-            subprocess.run(['rm', '-rf', local_path], check=True)
-        
-        cmd = ['git', 'clone', '-b', branch, repo_url, local_path]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        
-        return f"Successfully cloned {repo_url} to {local_path}"
-        
-    except subprocess.CalledProcessError as e:
-        return f"Error cloning repository: {e.stderr}"
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-
-@function_tool
-async def analyze_codebase_smart(
-    repo_path: str,
-    analysis_focus: str = "comprehensive"
-) -> str:
-    """
-    Intelligently analyze a codebase, automatically determining if chunking is needed based on size.
-    
-    Args:
-        repo_path: Path to the repository
-        analysis_focus: Focus area ('architecture', 'data_sources', 'dependencies', 'overview', 'comprehensive')
-    
-    Returns:
-        Markdown documentation of the analysis
-    """
-    try:
-        if not os.path.exists(repo_path):
-            return f"## Error\nRepository path does not exist: {repo_path}"
-        
-        # Get all relevant files and assess size
-        files = []
-        total_size = 0
-        
-        for root, dirs, file_names in os.walk(repo_path):
-            # Skip common directories that don't need analysis
-            dirs[:] = [d for d in dirs if d not in ['.git', '__pycache__', 'node_modules', '.venv', 'venv', 'dist', 'build']]
-            
-            for file_name in file_names:
-                if file_name.endswith(('.py', '.js', '.ts', '.java', '.go', '.php', '.cpp', '.c', '.rs', '.rb', '.cs')):
-                    file_path = os.path.join(root, file_name)
-                    files.append(file_path)
-                    try:
-                        total_size += os.path.getsize(file_path)
-                    except:
-                        pass
-        
-        repo_name = os.path.basename(repo_path)
-        
-        # Determine analysis strategy based on size
-        file_count = len(files)
-        
-        if file_count == 0:
-            return f"# {repo_name} Analysis\n\n⚠️ No source code files found for analysis."
-        
-        # Auto-determine analysis approach
-        if file_count <= 20 and total_size < 500000:  # Small project
-            return _analyze_small_project(files, repo_path, analysis_focus)
-        elif file_count <= 100 and total_size < 2000000:  # Medium project  
-            return _analyze_medium_project(files, repo_path, analysis_focus)
-        else:  # Large project - need summary approach
-            return _analyze_large_project(files, repo_path, analysis_focus)
-            
-    except Exception as e:
-        return f"## Error in Analysis\n{str(e)}"
-
-
-def _analyze_small_project(files: List[str], repo_path: str, focus: str) -> str:
-    """Analyze small projects comprehensively"""
-    
-    repo_name = os.path.basename(repo_path)
-    markdown = f"# {repo_name} - Complete Analysis\n\n"
-    markdown += f"📊 **Project Size**: {len(files)} files (Small project - comprehensive analysis)\n\n"
-    
-    # Comprehensive analysis for small projects
-    if focus in ["comprehensive", "architecture"]:
-        markdown += _get_architecture_analysis(files, repo_path)
-    
-    if focus in ["comprehensive", "data_sources"]:
-        markdown += _get_data_sources_analysis(files, repo_path)
-    
-    if focus in ["comprehensive", "dependencies"]:
-        markdown += _get_dependencies_analysis(files, repo_path)
-    
-    if focus in ["comprehensive", "overview"]:
-        markdown += _get_overview_analysis(files, repo_path)
-    
-    return markdown
-
-
-def _analyze_medium_project(files: List[str], repo_path: str, focus: str) -> str:
-    """Analyze medium projects with focused approach"""
-    
-    repo_name = os.path.basename(repo_path)
-    markdown = f"# {repo_name} - Focused Analysis\n\n"
-    markdown += f"📊 **Project Size**: {len(files)} files (Medium project - focused analysis)\n\n"
-    
-    # Focused analysis for medium projects
-    if focus == "architecture":
-        markdown += _get_architecture_analysis(files, repo_path)
-    elif focus == "data_sources":
-        markdown += _get_data_sources_analysis(files, repo_path)
-    elif focus == "dependencies":
-        markdown += _get_dependencies_analysis(files, repo_path)
-    else:  # comprehensive or overview
-        markdown += _get_overview_analysis(files, repo_path)
-        markdown += "\n---\n\n"
-        markdown += "💡 **Note**: For detailed analysis of this medium-sized project, request specific focus areas:\n"
-        markdown += "- Architecture analysis\n- Data sources analysis\n- Dependencies analysis\n\n"
-    
-    return markdown
-
-
-def _analyze_large_project(files: List[str], repo_path: str, focus: str) -> str:
-    """Analyze large projects with summary approach"""
-    
-    repo_name = os.path.basename(repo_path)
-    markdown = f"# {repo_name} - Summary Analysis\n\n"
-    markdown += f"📊 **Project Size**: {len(files)} files (Large project - summary approach)\n\n"
-    
-    # High-level summary for large projects
-    markdown += _get_overview_analysis(files, repo_path)
-    
-    markdown += "\n---\n\n"
-    markdown += "## 🎯 Recommended Next Steps\n\n"
-    markdown += "This is a large project. For detailed analysis, consider:\n\n"
-    markdown += "1. **Focus on specific directories**: Analyze key modules separately\n"
-    markdown += "2. **Targeted analysis**: Request analysis of specific aspects:\n"
-    markdown += "   - `analyze_codebase_smart('./path', 'architecture')`\n"
-    markdown += "   - `analyze_codebase_smart('./path', 'data_sources')`\n"
-    markdown += "   - `analyze_codebase_smart('./path', 'dependencies')`\n\n"
-    
-    # Show directory structure to help with targeted analysis
-    markdown += "### 📁 Directory Structure (for targeted analysis)\n\n"
-    dirs = set()
-    for file_path in files[:50]:  # Sample first 50 files
-        rel_path = os.path.relpath(file_path, repo_path)
-        dirs.add(os.path.dirname(rel_path))
-    
-    for directory in sorted(dirs):
-        if directory:
-            markdown += f"- `{directory}/`\n"
-    
-    return markdown
-
-
-def _get_architecture_analysis(files: List[str], repo_path: str) -> str:
+def get_architecture_analysis(files: List[str], repo_path: str) -> str:
     """Get architecture analysis"""
     
     markdown = "## 🏗️ Architecture Analysis\n\n"
@@ -270,7 +86,7 @@ def _get_architecture_analysis(files: List[str], repo_path: str) -> str:
     return markdown
 
 
-def _get_data_sources_analysis(files: List[str], repo_path: str) -> str:
+def get_data_sources_analysis(files: List[str], repo_path: str) -> str:
     """Get data sources analysis"""
     
     markdown = "## 💾 Data Sources Analysis\n\n"
@@ -357,7 +173,7 @@ def _get_data_sources_analysis(files: List[str], repo_path: str) -> str:
     return markdown
 
 
-def _get_dependencies_analysis(files: List[str], repo_path: str) -> str:
+def get_dependencies_analysis(files: List[str], repo_path: str) -> str:
     """Get dependencies analysis"""
     
     markdown = "## 📦 Dependencies Analysis\n\n"
@@ -452,7 +268,7 @@ def _get_dependencies_analysis(files: List[str], repo_path: str) -> str:
     return markdown
 
 
-def _get_overview_analysis(files: List[str], repo_path: str) -> str:
+def get_overview_analysis(files: List[str], repo_path: str) -> str:
     """Get overview analysis"""
     
     markdown = "## 📋 Project Overview\n\n"
@@ -497,63 +313,3 @@ def _get_overview_analysis(files: List[str], repo_path: str) -> str:
     markdown += "\n"
     
     return markdown
-
-
-# Create the Smart Codebase Agent
-smart_codebase_agent = Agent(
-    name="SmartCodebaseAgent",
-    instructions="""
-    You are an intelligent codebase analysis agent that automatically adapts your analysis approach based on project size and complexity.
-    
-    **Automatic Intelligence**:
-    - Automatically assess codebase size and complexity
-    - Choose appropriate analysis depth to stay within token limits
-    - Provide comprehensive analysis for small projects
-    - Focus on key insights for medium projects  
-    - Generate high-level summaries for large projects
-    
-    **Your capabilities**:
-    1. Clone GitHub repositories
-    2. Intelligently analyze codebases with automatic size detection
-    3. Generate focused markdown documentation
-    4. Provide actionable recommendations for further analysis
-    
-    **Analysis Strategy**:
-    - **Small projects** (≤20 files): Comprehensive analysis of architecture, data sources, and dependencies
-    - **Medium projects** (21-100 files): Focused analysis on requested area with overview
-    - **Large projects** (>100 files): High-level summary with recommendations for targeted analysis
-    
-    **When users request analysis**:
-    1. Clone repository if needed
-    2. Automatically assess project size
-    3. Apply appropriate analysis strategy
-    4. Generate useful markdown documentation
-    5. Suggest next steps if needed
-    
-    **Always provide**:
-    - Clear, structured markdown output
-    - Actionable insights based on project size
-    - Specific recommendations for large projects
-    - Focus on practical information developers need
-    
-    Be smart about token usage while maximizing value to the user.
-    """,
-    tools=[clone_github_repo, analyze_codebase_smart]
-)
-
-
-# Example usage
-async def example_smart_analysis():
-    """Example of smart codebase analysis"""
-    from agents import Runner
-    
-    result = await Runner.run(
-        smart_codebase_agent,
-        "Please analyze the repository './repos/JackyAIApp' and provide insights about its architecture and data sources."
-    )
-    
-    print("Smart analysis result:", result.final_output)
-
-
-if __name__ == "__main__":
-    asyncio.run(example_smart_analysis())

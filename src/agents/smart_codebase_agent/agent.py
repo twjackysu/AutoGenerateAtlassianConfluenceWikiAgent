@@ -30,13 +30,21 @@ smart_codebase_agent = Agent(
     2. Automatically assess project size
     3. Apply appropriate analysis strategy
     4. Generate useful markdown documentation
-    5. Suggest next steps if needed
+    5. Save markdown files to specified directory if requested
+    6. Suggest next steps if needed
+    
+    **File Output Options**:
+    - Use output_dir parameter to save markdown files to a specific folder
+    - Default output directory is './generated_docs'
+    - Files are automatically named with repo name, focus area, and timestamp
+    - Example: `RepoName_comprehensive_20250106_143022.md`
     
     **Always provide**:
     - Clear, structured markdown output
     - Actionable insights based on project size
     - Specific recommendations for large projects
     - Focus on practical information developers need
+    - File save confirmation when output_dir is specified
     
     Be smart about token usage while maximizing value to the user.
     """,

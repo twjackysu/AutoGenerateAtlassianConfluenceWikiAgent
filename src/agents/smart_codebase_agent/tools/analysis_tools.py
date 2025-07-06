@@ -1,6 +1,8 @@
 import os
 import re
 import fnmatch
+from datetime import datetime
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 from agents import function_tool
 from .analysis_helpers import (
@@ -14,7 +16,8 @@ from .analysis_helpers import (
 @function_tool
 async def analyze_codebase_smart(
     repo_path: str,
-    analysis_focus: str = "comprehensive"
+    analysis_focus: str = "comprehensive",
+    output_dir: str = None
 ) -> str:
     """
     Intelligently analyze a codebase, automatically determining if chunking is needed based on size.
@@ -22,9 +25,10 @@ async def analyze_codebase_smart(
     Args:
         repo_path: Path to the repository
         analysis_focus: Focus area ('architecture', 'data_sources', 'dependencies', 'overview', 'comprehensive')
+        output_dir: Directory to save markdown files (optional, defaults to './generated_docs')
     
     Returns:
-        Markdown documentation of the analysis
+        Markdown documentation of the analysis and file save status
     """
     try:
         if not os.path.exists(repo_path):
@@ -57,14 +61,41 @@ async def analyze_codebase_smart(
         
         # Auto-determine analysis approach
         if file_count <= 20 and total_size < 500000:  # Small project
-            return _analyze_small_project(files, repo_path, analysis_focus)
+            markdown_content = _analyze_small_project(files, repo_path, analysis_focus)
         elif file_count <= 100 and total_size < 2000000:  # Medium project  
-            return _analyze_medium_project(files, repo_path, analysis_focus)
+            markdown_content = _analyze_medium_project(files, repo_path, analysis_focus)
         else:  # Large project - need summary approach
-            return _analyze_large_project(files, repo_path, analysis_focus)
+            markdown_content = _analyze_large_project(files, repo_path, analysis_focus)
+        
+        # Save to file if output_dir is specified
+        if output_dir:
+            file_path = _save_markdown_to_file(markdown_content, repo_name, analysis_focus, output_dir)
+            return f"{markdown_content}\n\n---\n\n📁 **File saved**: {file_path}"
+        else:
+            return markdown_content
             
     except Exception as e:
         return f"## Error in Analysis\n{str(e)}"
+
+
+def _save_markdown_to_file(content: str, repo_name: str, focus: str, output_dir: str) -> str:
+    """Save markdown content to a file"""
+    try:
+        # Create output directory if it doesn't exist
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{repo_name}_{focus}_{timestamp}.md"
+        file_path = os.path.join(output_dir, filename)
+        
+        # Write content to file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        return file_path
+    except Exception as e:
+        return f"Error saving file: {str(e)}"
 
 
 def _analyze_small_project(files: List[str], repo_path: str, focus: str) -> str:

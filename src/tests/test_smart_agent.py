@@ -2,8 +2,27 @@
 
 import asyncio
 import os
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Add the project root to Python path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+# Load environment variables from .env file in project root
+env_path = project_root / '.env'
+load_dotenv(env_path)
+
+# Check if OpenAI API key is available
+if not os.getenv('OPENAI_API_KEY'):
+    print("❌ Error: OPENAI_API_KEY environment variable is not set!")
+    print("Please create a .env file in the project root with:")
+    print("OPENAI_API_KEY=your_openai_api_key_here")
+    exit(1)
+
 from agents import Runner
-from smart_codebase_agent import smart_codebase_agent
+from src.agents.smart_codebase_agent import smart_codebase_agent
 
 
 async def test_smart_agent():

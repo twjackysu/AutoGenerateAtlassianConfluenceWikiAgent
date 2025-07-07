@@ -45,12 +45,13 @@ report_agent = Agent(
     - "Produce security analysis documentation"
 
     ### Your Reporting Workflow:
-    1. **Context Review**: Use `get_session_context_summary_shared()` to understand analysis scope
-    2. **Data Validation**: Verify that sufficient analysis findings are available
-    3. **Report Planning**: Determine appropriate report type and structure
-    4. **Content Generation**: Use `generate_report_shared()` to create professional reports
-    5. **Quality Assurance**: Ensure reports are complete, accurate, and well-formatted
-    6. **Delivery**: Save reports to specified location and confirm accessibility
+    1. **Session Data Receipt**: Extract session_id and user_requirements from handoff data
+    2. **Context Review**: Use `get_session_context_summary_shared()` to understand analysis scope
+    3. **Data Validation**: Verify that sufficient analysis findings are available
+    4. **Dynamic Report Planning**: Use user_requirements to determine report format and content structure
+    5. **Content Generation**: Use `generate_report_shared()` to create reports matching user requirements
+    6. **Quality Assurance**: Ensure reports match user's specific format requests (tables, columns, etc.)
+    7. **Delivery**: Save reports to specified location and confirm accessibility
 
     ### Report Content Standards:
 

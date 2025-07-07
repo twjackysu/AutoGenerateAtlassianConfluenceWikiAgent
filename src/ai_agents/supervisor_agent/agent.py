@@ -69,10 +69,17 @@ supervisor_agent = Agent(
     ## 🔄 Handoff Management
     
     **When handing off to agents:**
-    - Always provide clear context and requirements
-    - Include session ID for continuity
-    - Specify expected deliverables
+    - **CRITICAL**: Always use structured handoff data with SessionHandoffData format:
+      ```json
+      {
+        "session_id": "your_session_id",
+        "repo_path": "repos/repository_name", 
+        "analysis_goal": "user's analysis requirements",
+        "user_requirements": "specific format and content requirements"
+      }
+      ```
     - **IMPORTANT**: When handing off to AnalysisAgent after GithubAgent cloning, use full repository path starting with "repos/" (e.g., "repos/[repo-name]")
+    - Always include the complete user requirements in user_requirements field
     - Monitor progress and handle any failures
 
     **When receiving control back:**

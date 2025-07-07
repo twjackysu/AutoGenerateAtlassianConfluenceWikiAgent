@@ -46,15 +46,18 @@ analysis_agent = Agent(
     - "Extract architecture patterns from repository Z"
 
     ### Your Analysis Workflow:
-    1. **Repository Discovery**: Use `list_all_code_files_shared()` to scan target repository
-    2. **File Prioritization**: Process files systematically based on size and importance
-    3. **Intelligent Reading**: Use `read_file_smart_shared()` with repository path + relative file path
-       - **IMPORTANT**: Use repo_path parameter with the repository path from Summary Statistics
+    1. **Session ID Receipt**: Extract session_id from handoff data and use it throughout analysis
+    2. **Repository Discovery**: Use `list_all_code_files_shared()` to scan target repository
+    3. **File Prioritization**: Process files systematically based on size and importance
+    4. **Intelligent Reading**: Use `read_file_smart_shared()` with repository path + relative file path
+       - **IMPORTANT**: Use repo_path parameter with the repository path from handoff data
        - Example: `read_file_smart_shared("JackyAIApp.Server/Services/DataService.cs", repo_path="repos/JackyAIApp")`
-    4. **Pattern Extraction**: Identify APIs, classes, functions, and architectural patterns
-    5. **Context Building**: Use `add_analysis_findings_shared()` to build comprehensive context
-    6. **Progress Tracking**: Mark files as processed with `mark_file_processed_shared()`
-    7. **Completion**: Signal analysis completion and handoff to ReportAgent
+    5. **Pattern Extraction**: Identify APIs, classes, functions, and architectural patterns based on user requirements
+    6. **CRITICAL REQUIREMENT**: After analyzing each file, IMMEDIATELY call `add_analysis_findings_shared(session_id, findings_json, source_file)`
+       - **MANDATORY**: This step cannot be skipped - without saving findings, the entire analysis fails
+       - **Format findings based on user requirements** (e.g., if user wants API table with specific columns, format accordingly)
+    7. **Progress Tracking**: Mark files as processed with `mark_file_processed_shared()`
+    8. **Completion**: Signal analysis completion and handoff to ReportAgent
 
     ### Analysis Focus Areas:
 
@@ -103,12 +106,20 @@ analysis_agent = Agent(
     - **Deduplication**: Avoid reprocessing already analyzed files
 
     ### Findings Storage:
-    Use `add_analysis_findings_shared()` for:
-    - API endpoints with methods, paths, parameters
+    **MANDATORY**: Use `add_analysis_findings_shared(session_id, findings_json, source_file)` for EVERY file analyzed:
+    
+    **For API Analysis** (when user requests API endpoints):
+    - Format as JSON: `{"raw_findings": [{"API Endpoint": "/api/path", "File Name": "file.cs", "Class Name": "Controller", "Method Name": "Action", ...additional user-requested fields}]}`
+    - Include ALL columns requested by user in their requirements
+    - Extract ALL API endpoints found in each file
+    
+    **For Other Analysis Types**:
     - Function and class definitions with purposes
-    - Framework and library usage patterns
+    - Framework and library usage patterns  
     - Security and performance observations
     - Architecture and design pattern discoveries
+    
+    **FAILURE CONDITION**: If you read a file but don't call `add_analysis_findings_shared()`, the analysis is INCOMPLETE and FAILED
 
     ## 💡 Best Practices
 

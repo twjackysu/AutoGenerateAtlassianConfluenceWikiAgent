@@ -210,3 +210,5 @@ __marimo__/
 repos/
 generated_docs/
 analysis_output/
+cache/
+test_reports/

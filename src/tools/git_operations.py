@@ -1,3 +1,8 @@
+"""
+Git operations tools - shared version for multi-agent system.
+Based on the original github_tools.py but adapted for multi-agent usage.
+"""
+
 import os
 import subprocess
 import shutil
@@ -6,7 +11,7 @@ from agents import function_tool
 
 
 @function_tool
-async def clone_github_repo(repo_url: str, local_path: str = None, branch: str = None) -> str:
+async def clone_github_repo_shared(repo_url: str, local_path: str = None, branch: str = None) -> str:
     """
     Clone or update a GitHub repository to local filesystem.
     If repository exists, fetch and hard reset to latest.

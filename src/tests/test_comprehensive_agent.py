@@ -25,7 +25,7 @@ if not os.getenv('OPENAI_API_KEY'):
     exit(1)
 
 from agents import Runner
-from src.agents.comprehensive_codebase_agent import comprehensive_codebase_agent
+from ..agents.comprehensive_codebase_agent import comprehensive_codebase_agent
 
 
 async def test_github_integration():
@@ -38,7 +38,6 @@ async def test_github_integration():
     list_result = await Runner.run(
         comprehensive_codebase_agent,
         "Extract all API endpoints and analyze system architecture, use the GitHub repository 'twjackysu/JackyAIApp'. Save reports to './test_reports/'.",
-        max_turns=500,  # Increased for comprehensive analysis of large codebases
     )
     print("Repository Analysis Result:")
     print(list_result.final_output[:1000] + "..." if len(list_result.final_output) > 1000 else list_result.final_output)

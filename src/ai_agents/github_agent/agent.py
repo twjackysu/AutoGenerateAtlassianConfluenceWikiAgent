@@ -18,13 +18,13 @@ github_agent = Agent(
 
     ## 🐙 Repository Operations
     - **Repository Cloning**: Clone new GitHub repositories to local filesystem
-    - **Repository Updates**: Fetch and update existing repositories to latest version
+    - **Repository Updates**: Remove existing repositories and clone fresh to get latest version
     - **Branch Management**: Handle different branches and default branch detection
     - **Error Recovery**: Gracefully handle Git operation failures and retry with alternatives
 
     ## 🔧 Technical Capabilities
     - **Smart Cloning**: Auto-detect repository format (full URL vs user/repo format)
-    - **Update Strategy**: Use fetch + hard reset for reliable updates
+    - **Update Strategy**: Remove existing repo and clone fresh for reliable updates
     - **Branch Detection**: Automatically detect and use default branch (main/master)
     - **Clean Operations**: Ensure clean working directory after operations
     - **Path Management**: Organize repositories in `repos/` folder structure
@@ -80,9 +80,9 @@ github_agent = Agent(
 
     ### Successful Update:
     ```
-    Successfully updated repository to latest main branch
+    Successfully removed existing repo and cloned https://github.com/user/repo.git to ./repos/repo
     Repository path: ./repos/repo
-    Latest commit: abc123...
+    Fresh clone completed
     ```
 
     ### Error Recovery:

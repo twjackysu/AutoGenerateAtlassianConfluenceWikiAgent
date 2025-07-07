@@ -13,6 +13,12 @@ from ...tools.context_operations import (
     get_session_context_summary_shared,
     get_file_context_shared
 )
+from ...tools.formatting_tools import (
+    convert_json_to_markdown_table,
+    format_findings_as_list,
+    extract_unique_fields,
+    generate_summary_stats
+)
 
 
 report_agent = Agent(
@@ -48,10 +54,16 @@ report_agent = Agent(
     1. **Session Data Receipt**: Extract session_id and user_requirements from handoff data
     2. **Context Review**: Use `get_session_context_summary_shared()` to understand analysis scope
     3. **Data Validation**: Verify that sufficient analysis findings are available
-    4. **Dynamic Report Planning**: Use user_requirements to determine report format and content structure
-    5. **Content Generation**: Use `generate_report_shared()` to create reports matching user requirements
-    6. **Quality Assurance**: Ensure reports match user's specific format requests (tables, columns, etc.)
-    7. **Delivery**: Save reports to specified location and confirm accessibility
+    4. **Raw Data Analysis**: Extract raw findings data from the context (look for 'raw_findings' in analysis results)
+    5. **User Requirements Analysis**: Parse what the user wants (table, list, specific columns, grouping, etc.)
+    6. **Dynamic Formatting**: Use appropriate formatting tools based on user needs:
+       - **For tables**: Use `convert_json_to_markdown_table(json_data, columns)` 
+       - **For lists**: Use `format_findings_as_list(json_data, grouping_field, display_fields)`
+       - **To explore data**: Use `extract_unique_fields(json_data)` to see available fields
+       - **For statistics**: Use `generate_summary_stats(json_data)` 
+    7. **Custom Report Creation**: Combine formatted results with professional markdown structure
+    8. **Quality Assurance**: Ensure the final report matches user's specific requests
+    9. **Delivery**: Provide the complete, formatted report that satisfies user requirements
 
     ### Report Content Standards:
 
@@ -93,12 +105,37 @@ report_agent = Agent(
     - **Problem Identification**: Highlight issues and opportunities
     - **Decision Support**: Enable informed architectural and development decisions
 
+    ## 🎯 Dynamic User Requirements Processing
+
+    ### Understanding User Needs:
+    **CRITICAL**: Always analyze the user_requirements from handoff data to understand what format they want.
+
+    **Common User Request Patterns**:
+    - **"table"** or **"table with columns X, Y, Z"** → Use `convert_json_to_markdown_table()`
+    - **"list"** or **"grouped by X"** → Use `format_findings_as_list()`
+    - **"summary"** or **"statistics"** → Use `generate_summary_stats()`
+    - **"show me all fields"** → Use `extract_unique_fields()` first
+
+    ### Processing Steps:
+    1. **Extract Raw Data**: From context findings, get the 'raw_findings' JSON arrays
+    2. **Combine All Data**: Merge all raw_findings from different files into one dataset
+    3. **Apply User Format**: Use the appropriate formatting tool based on user requirements
+    4. **Present Results**: Create a professional report with the formatted data
+
+    ### Example Workflow:
+    ```
+    User says: "I want a table with API Endpoint, File Name, Class Name columns"
+    → Extract all raw_findings JSON data
+    → Use convert_json_to_markdown_table(json_data, "API Endpoint,File Name,Class Name")
+    → Present as professional markdown report
+    ```
+
     ## 🔄 Context Integration
 
     ### Multi-Agent Findings:
-    - **Supervisor Context**: Overall session coordination and progress
+    - **Supervisor Context**: Overall session coordination and progress  
     - **GitHub Context**: Repository information and operation status
-    - **Analysis Context**: Core findings from comprehensive analysis
+    - **Analysis Context**: Core findings from comprehensive analysis (contains raw_findings JSON)
     - **Cross-Agent Coordination**: Integration of findings from multiple sources
 
     ### Data Sources:
@@ -162,7 +199,11 @@ report_agent = Agent(
         generate_report_shared,
         list_available_report_types_shared,
         get_session_context_summary_shared,
-        get_file_context_shared
+        get_file_context_shared,
+        convert_json_to_markdown_table,
+        format_findings_as_list,
+        extract_unique_fields,
+        generate_summary_stats
     ]
     # handoffs will be configured after all agents are created
 )

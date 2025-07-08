@@ -145,8 +145,16 @@ No specific analysis findings available for this file yet.
             for i, finding in enumerate(relevant_findings, 1):
                 output += f"### Analysis {i} ({finding.get('added_at', 'Unknown time')})\n"
                 findings_data = finding.get('findings', {})
-                for key, value in findings_data.items():
-                    output += f"- **{key}**: {value}\n"
+                
+                # Handle both dictionary and list formats
+                if isinstance(findings_data, dict):
+                    for key, value in findings_data.items():
+                        output += f"- **{key}**: {value}\n"
+                elif isinstance(findings_data, list):
+                    for j, item in enumerate(findings_data):
+                        output += f"- **Item {j+1}**: {item}\n"
+                else:
+                    output += f"- **Raw data**: {findings_data}\n"
                 output += "\n"
         
         return output

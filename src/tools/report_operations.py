@@ -203,10 +203,20 @@ This report presents the comprehensive analysis performed by a multi-agent syste
                 findings_data = finding.get('findings', {})
                 if findings_data:
                     report += f"- **Latest Analysis** ({finding.get('added_at', 'Unknown')}):\n"
-                    for key, value in list(findings_data.items())[:3]:  # Show first 3 items
-                        report += f"  - {key}: {value}\n"
-                    if len(findings_data) > 3:
-                        report += f"  - ... and {len(findings_data) - 3} more items\n"
+                    
+                    # Handle both dictionary and list formats
+                    if isinstance(findings_data, dict):
+                        for key, value in list(findings_data.items())[:3]:  # Show first 3 items
+                            report += f"  - {key}: {value}\n"
+                        if len(findings_data) > 3:
+                            report += f"  - ... and {len(findings_data) - 3} more items\n"
+                    elif isinstance(findings_data, list):
+                        for i, item in enumerate(findings_data[:3]):  # Show first 3 items
+                            report += f"  - Item {i+1}: {item}\n"
+                        if len(findings_data) > 3:
+                            report += f"  - ... and {len(findings_data) - 3} more items\n"
+                    else:
+                        report += f"  - Raw data: {findings_data}\n"
     
     # Add technical details section
     report += f"""

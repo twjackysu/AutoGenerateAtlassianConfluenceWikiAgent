@@ -575,3 +575,50 @@ To read the actual content, use `read_file_smart_shared()` with specific chunk i
 """
     
     return output
+
+
+@function_tool
+async def save_report_file_shared(
+    content: str,
+    filename: str,
+    directory: str = "./test_reports/multi_agent/"
+) -> str:
+    """
+    Save a report file to the specified directory.
+    
+    Args:
+        content: The content to write to the file
+        filename: The name of the file (with extension)
+        directory: The directory to save the file in (default: ./test_reports/multi_agent/)
+    
+    Returns:
+        Status message with file path
+    """
+    try:
+        from datetime import datetime
+        
+        # Create directory if it doesn't exist
+        os.makedirs(directory, exist_ok=True)
+        
+        # Construct full file path
+        file_path = os.path.join(directory, filename)
+        
+        # Write file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        # Get file size
+        file_size = os.path.getsize(file_path)
+        
+        return f"""✅ **Report Saved Successfully**
+
+📁 **File Location**: `{file_path}`
+📊 **File Size**: {file_size:,} bytes
+📝 **Content Length**: {len(content):,} characters
+🕐 **Saved**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+The report has been saved and is ready for access.
+"""
+        
+    except Exception as e:
+        return f"❌ **Error saving report**: {str(e)}"

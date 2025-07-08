@@ -12,6 +12,7 @@ from ...tools.context_operations import (
     get_session_context_summary_shared,
     get_file_context_shared
 )
+from ...tools.file_operations import save_report_file_shared
 
 
 report_agent = Agent(
@@ -47,7 +48,7 @@ report_agent = Agent(
        - **For "list"**: Create organized lists with grouping as needed
        - **For exploration**: Analyze data structure and present all available fields
     7. **Custom Report Creation**: Create your own complete markdown report/wiki structure
-    8. **Report File Creation**: Save manually to './test_reports/multi_agent/' directory
+    8. **Report File Creation**: Use `save_report_file_shared()` to save the report
     9. **Quality Assurance**: Ensure the final report matches user's specific requests
     10. **Delivery**: Provide the complete, formatted report that satisfies user requirements
 
@@ -124,7 +125,7 @@ report_agent = Agent(
       - Formatted data table
       - Analysis insights
       - Recommendations
-    → Save report to './test_reports/multi_agent/' directory with timestamp
+    → Use save_report_file_shared() to save the report with timestamp
     → Return report location and summary
     ```
 
@@ -135,8 +136,8 @@ report_agent = Agent(
     2. Use your built-in LLM abilities to format data (tables, lists, etc.)
     3. **YOU** create the complete custom markdown report/wiki with your own structure
     4. Include the formatted data within your own markdown content
-    5. Save manually to './test_reports/multi_agent/' directory with timestamp filename
-    6. Use Python file writing: os.makedirs('./test_reports/multi_agent/', exist_ok=True) then write file
+    5. Use `save_report_file_shared()` to save the report with timestamp filename
+    6. The tool will automatically create the directory and save the file
 
     ### **IMPORTANT**: 
     - You have natural markdown formatting abilities - use them directly
@@ -185,29 +186,31 @@ report_agent = Agent(
 
     ### Report Delivery:
     - **Dynamic Generation**: Create reports directly without using generate_report_shared
-    - **Custom Formatting**: Use formatting tools to present data according to user needs
-    - **File Creation**: Save reports manually to './test_reports/multi_agent/' with timestamps
+    - **Custom Formatting**: Use your built-in LLM abilities to format data according to user needs
+    - **File Creation**: Use `save_report_file_shared()` to save reports with timestamps
     - **Access Instructions**: Provide clear path and access information
     - **Summary Delivery**: Give overview of generated reports
     
     ### File Saving Instructions:
-    When saving reports, use this pattern:
+    **ALWAYS** use the `save_report_file_shared()` tool to save your reports:
     ```python
-    import os
-    from datetime import datetime
-    
-    # Create directory
-    os.makedirs('./test_reports/multi_agent/', exist_ok=True)
-    
-    # Generate filename with timestamp
+    # Generate timestamp filename
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"custom_report_{session_id}_{timestamp}.md"
-    filepath = f"./test_reports/multi_agent/{filename}"
     
-    # Write file
-    with open(filepath, 'w', encoding='utf-8') as f:
-        f.write(report_content)
+    # Save the report using the tool
+    save_report_file_shared(
+        content=your_complete_markdown_report,
+        filename=filename,
+        directory="./test_reports/multi_agent/"  # optional, this is default
+    )
     ```
+    
+    ### Tool Usage:
+    - `save_report_file_shared()` automatically creates directories
+    - Default directory is `./test_reports/multi_agent/`
+    - You can specify custom directory if needed
+    - Tool returns status with file path and details
 
     ## 🔄 Handoff Protocol
 
@@ -250,7 +253,8 @@ report_agent = Agent(
     """,
     tools=[
         get_session_context_summary_shared,
-        get_file_context_shared
+        get_file_context_shared,
+        save_report_file_shared
     ]
     # handoffs will be configured after all agents are created
 )

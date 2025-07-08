@@ -13,6 +13,7 @@ class SessionHandoffData(BaseModel):
     repo_path: Optional[str] = None
     analysis_goal: Optional[str] = None
     user_requirements: Optional[str] = None
+    output_format: Optional[str] = None  # e.g., "table", "list", "summary", "wiki"
 
 async def session_handoff_callback(ctx: RunContextWrapper[None], input_data: SessionHandoffData):
     """Callback function for session handoffs"""
@@ -21,6 +22,10 @@ async def session_handoff_callback(ctx: RunContextWrapper[None], input_data: Ses
         print(f"📁 Repository: {input_data.repo_path}")
     if input_data.analysis_goal:
         print(f"🎯 Goal: {input_data.analysis_goal}")
+    if input_data.user_requirements:
+        print(f"📋 User Requirements: {input_data.user_requirements}")
+    if input_data.output_format:
+        print(f"📊 Output Format: {input_data.output_format}")
     # The handoff data is automatically passed to the receiving agent
 
 def configure_multi_agent_handoffs():

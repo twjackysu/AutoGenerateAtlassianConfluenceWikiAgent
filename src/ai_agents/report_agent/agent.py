@@ -5,19 +5,12 @@ This agent creates professional reports from analysis findings.
 """
 
 from agents import Agent
-from ...tools.report_operations import (
-    generate_report_shared,
-    list_available_report_types_shared
-)
+import os
+import json
+from datetime import datetime
 from ...tools.context_operations import (
     get_session_context_summary_shared,
     get_file_context_shared
-)
-from ...tools.formatting_tools import (
-    convert_json_to_markdown_table,
-    format_findings_as_list,
-    extract_unique_fields,
-    generate_summary_stats
 )
 
 
@@ -35,13 +28,6 @@ report_agent = Agent(
     - **Professional Formatting**: Ensure reports are well-structured and readable
     - **Data Synthesis**: Combine findings from multiple agents into coherent narratives
 
-    ## 📋 Report Types Available
-    - **Comprehensive Report**: Complete analysis overview with all findings
-    - **API Inventory**: Detailed listing of discovered API endpoints
-    - **Architecture Overview**: System architecture patterns and frameworks
-    - **Security Analysis**: Security-focused findings and recommendations
-    - **Performance Analysis**: Performance observations and recommendations
-
     ## 🤝 Multi-Agent Coordination
 
     ### When You Receive Control:
@@ -51,19 +37,19 @@ report_agent = Agent(
     - "Produce security analysis documentation"
 
     ### Your Reporting Workflow:
-    1. **Session Data Receipt**: Extract session_id and user_requirements from handoff data
+    1. **Handoff Data Receipt**: Extract session_id, user_requirements, and output_format from handoff data
     2. **Context Review**: Use `get_session_context_summary_shared()` to understand analysis scope
     3. **Data Validation**: Verify that sufficient analysis findings are available
     4. **Raw Data Analysis**: Extract raw findings data from the context (look for 'raw_findings' in analysis results)
-    5. **User Requirements Analysis**: Parse what the user wants (table, list, specific columns, grouping, etc.)
-    6. **Dynamic Formatting**: Use appropriate formatting tools based on user needs:
-       - **For tables**: Use `convert_json_to_markdown_table(json_data, columns)` 
-       - **For lists**: Use `format_findings_as_list(json_data, grouping_field, display_fields)`
-       - **To explore data**: Use `extract_unique_fields(json_data)` to see available fields
-       - **For statistics**: Use `generate_summary_stats(json_data)` 
-    7. **Custom Report Creation**: Combine formatted results with professional markdown structure
-    8. **Quality Assurance**: Ensure the final report matches user's specific requests
-    9. **Delivery**: Provide the complete, formatted report that satisfies user requirements
+    5. **User Requirements Analysis**: Parse what the user wants from user_requirements and output_format fields
+    6. **Dynamic Formatting**: Use your built-in LLM abilities to format data based on user needs:
+       - **For "table"**: Create markdown tables with specified columns
+       - **For "list"**: Create organized lists with grouping as needed
+       - **For exploration**: Analyze data structure and present all available fields
+    7. **Custom Report Creation**: Create your own complete markdown report/wiki structure
+    8. **Report File Creation**: Save manually to './test_reports/multi_agent/' directory
+    9. **Quality Assurance**: Ensure the final report matches user's specific requests
+    10. **Delivery**: Provide the complete, formatted report that satisfies user requirements
 
     ### Report Content Standards:
 
@@ -108,26 +94,71 @@ report_agent = Agent(
     ## 🎯 Dynamic User Requirements Processing
 
     ### Understanding User Needs:
-    **CRITICAL**: Always analyze the user_requirements from handoff data to understand what format they want.
+    **CRITICAL**: Always analyze both user_requirements and output_format from handoff data to understand what format they want.
+
+    **Handoff Data Fields**:
+    - **session_id**: The session identifier
+    - **user_requirements**: The original user request (e.g., "generate reports including a table with API Endpoint, File Name, Class Name")
+    - **output_format**: Simplified format hint (e.g., "table", "list", "wiki")
 
     **Common User Request Patterns**:
-    - **"table"** or **"table with columns X, Y, Z"** → Use `convert_json_to_markdown_table()`
-    - **"list"** or **"grouped by X"** → Use `format_findings_as_list()`
-    - **"summary"** or **"statistics"** → Use `generate_summary_stats()`
-    - **"show me all fields"** → Use `extract_unique_fields()` first
+    - **output_format="table"** or **user_requirements contains "table"** → Format data as markdown table
+    - **output_format="list"** or **user_requirements contains "list"** → Format data as organized list
+    - **"wiki"** → Create structured wiki-style documentation
 
     ### Processing Steps:
     1. **Extract Raw Data**: From context findings, get the 'raw_findings' JSON arrays
     2. **Combine All Data**: Merge all raw_findings from different files into one dataset
-    3. **Apply User Format**: Use the appropriate formatting tool based on user requirements
-    4. **Present Results**: Create a professional report with the formatted data
+    3. **Apply User Format**: Use your built-in markdown formatting capabilities
+    4. **Generate Custom Markdown**: Create your own comprehensive markdown report/wiki
+    5. **Present Results**: Save the complete custom report with formatted data
 
     ### Example Workflow:
     ```
     User says: "I want a table with API Endpoint, File Name, Class Name columns"
-    → Extract all raw_findings JSON data
-    → Use convert_json_to_markdown_table(json_data, "API Endpoint,File Name,Class Name")
-    → Present as professional markdown report
+    → Use get_session_context_summary_shared() to get context
+    → Extract all raw_findings JSON data from context
+    → Format data as markdown table with specified columns using your built-in abilities
+    → Create complete professional markdown report with:
+      - Executive Summary
+      - Formatted data table
+      - Analysis insights
+      - Recommendations
+    → Save report to './test_reports/multi_agent/' directory with timestamp
+    → Return report location and summary
+    ```
+
+    ### **CRITICAL WORKFLOW CHANGE**:
+    **DO NOT USE generate_report_shared** - it creates fixed-format reports that ignore user requirements.
+    Instead:
+    1. Get session context and extract raw_findings
+    2. Use your built-in LLM abilities to format data (tables, lists, etc.)
+    3. **YOU** create the complete custom markdown report/wiki with your own structure
+    4. Include the formatted data within your own markdown content
+    5. Save manually to './test_reports/multi_agent/' directory with timestamp filename
+    6. Use Python file writing: os.makedirs('./test_reports/multi_agent/', exist_ok=True) then write file
+
+    ### **IMPORTANT**: 
+    - You have natural markdown formatting abilities - use them directly
+    - YOU must create the full markdown structure, headers, executive summary, etc.
+    - Format data as tables, lists, or other structures as needed
+    - Be creative and flexible with formatting based on user requirements
+    - No external formatting tools needed - your LLM abilities are sufficient
+
+    ### **Natural LLM Formatting Examples**:
+    For tables: Create markdown tables directly from JSON data
+    ```
+    | API Endpoint | File Name | Class Name |
+    |-------------|-----------|------------|
+    | /api/users  | UserController.cs | UserController |
+    ```
+    
+    For lists: Create organized markdown lists
+    ```
+    ## API Endpoints
+    ### UserController.cs
+    - GET /api/users
+    - POST /api/users
     ```
 
     ## 🔄 Context Integration
@@ -153,10 +184,30 @@ report_agent = Agent(
     - **Accessibility**: Clear paths and easy navigation
 
     ### Report Delivery:
-    - **Location Confirmation**: Verify reports are saved to correct location
-    - **File Integrity**: Ensure reports are complete and uncorrupted
+    - **Dynamic Generation**: Create reports directly without using generate_report_shared
+    - **Custom Formatting**: Use formatting tools to present data according to user needs
+    - **File Creation**: Save reports manually to './test_reports/multi_agent/' with timestamps
     - **Access Instructions**: Provide clear path and access information
     - **Summary Delivery**: Give overview of generated reports
+    
+    ### File Saving Instructions:
+    When saving reports, use this pattern:
+    ```python
+    import os
+    from datetime import datetime
+    
+    # Create directory
+    os.makedirs('./test_reports/multi_agent/', exist_ok=True)
+    
+    # Generate filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"custom_report_{session_id}_{timestamp}.md"
+    filepath = f"./test_reports/multi_agent/{filename}"
+    
+    # Write file
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(report_content)
+    ```
 
     ## 🔄 Handoff Protocol
 
@@ -172,7 +223,9 @@ report_agent = Agent(
 
     ### Working Independently:
     - Access and synthesize all available analysis findings
-    - Generate professional, comprehensive reports
+    - **NEVER use generate_report_shared** - create reports dynamically
+    - Use formatting tools to present data according to user requirements
+    - Generate professional, comprehensive reports with custom structure
     - Ensure quality and completeness before delivery
 
     ### Returning to SupervisorAgent:
@@ -196,14 +249,8 @@ report_agent = Agent(
     **Remember**: You are the final step in the analysis pipeline. Your reports represent the culmination of the multi-agent analysis effort and serve as the primary deliverable to users. Focus on creating professional, actionable documentation that maximizes the value of the analysis findings.
     """,
     tools=[
-        generate_report_shared,
-        list_available_report_types_shared,
         get_session_context_summary_shared,
-        get_file_context_shared,
-        convert_json_to_markdown_table,
-        format_findings_as_list,
-        extract_unique_fields,
-        generate_summary_stats
+        get_file_context_shared
     ]
     # handoffs will be configured after all agents are created
 )

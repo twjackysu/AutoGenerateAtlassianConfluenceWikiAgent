@@ -15,6 +15,15 @@ class SessionHandoffData(BaseModel):
     user_requirements: Optional[str] = None
     output_format: Optional[str] = None  # e.g., "table", "list", "summary", "wiki"
 
+class ReportHandoffData(BaseModel):
+    """Data structure for passing report content and storage requirements"""
+    session_id: str
+    report_content: str
+    storage_preference: Optional[str] = "local"  # "local", "confluence", "google_drive", etc.
+    custom_filename: Optional[str] = None
+    custom_directory: Optional[str] = None
+    user_requirements: Optional[str] = None
+
 async def session_handoff_callback(ctx: RunContextWrapper[None], input_data: SessionHandoffData):
     """Callback function for session handoffs"""
     print(f"🔄 Handoff with session: {input_data.session_id}")
@@ -28,6 +37,19 @@ async def session_handoff_callback(ctx: RunContextWrapper[None], input_data: Ses
         print(f"📊 Output Format: {input_data.output_format}")
     # The handoff data is automatically passed to the receiving agent
 
+async def report_handoff_callback(ctx: RunContextWrapper[None], input_data: ReportHandoffData):
+    """Callback function for report handoffs"""
+    print(f"📄 Report handoff for session: {input_data.session_id}")
+    print(f"💾 Storage preference: {input_data.storage_preference}")
+    if input_data.custom_filename:
+        print(f"📝 Custom filename: {input_data.custom_filename}")
+    if input_data.custom_directory:
+        print(f"📂 Custom directory: {input_data.custom_directory}")
+    if input_data.user_requirements:
+        print(f"📋 User Requirements: {input_data.user_requirements}")
+    print(f"📊 Report size: {len(input_data.report_content)} characters")
+    # The handoff data is automatically passed to the receiving agent
+
 def configure_multi_agent_handoffs():
     """Configure handoffs between all agents in the multi-agent system"""
     
@@ -36,13 +58,15 @@ def configure_multi_agent_handoffs():
     from .github_agent import github_agent
     from .analysis_agent import analysis_agent
     from .report_agent import report_agent
+    from .save_or_upload_report_agent import save_or_upload_report_agent
     from agents import handoff
     
     # Configure SupervisorAgent handoffs with session data passing
     supervisor_agent.handoffs = [
         handoff(github_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
         handoff(analysis_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData), 
-        handoff(report_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData)
+        handoff(report_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
+        handoff(save_or_upload_report_agent, on_handoff=report_handoff_callback, input_type=ReportHandoffData)
     ]
     
     # Configure GithubAgent handoffs  
@@ -58,6 +82,12 @@ def configure_multi_agent_handoffs():
     
     # Configure ReportAgent handoffs
     report_agent.handoffs = [
+        handoff(supervisor_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
+        handoff(save_or_upload_report_agent, on_handoff=report_handoff_callback, input_type=ReportHandoffData)
+    ]
+    
+    # Configure SaveOrUploadReportAgent handoffs
+    save_or_upload_report_agent.handoffs = [
         handoff(supervisor_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData)
     ]
     
@@ -66,7 +96,8 @@ def configure_multi_agent_handoffs():
         'supervisor': supervisor_agent,
         'github': github_agent, 
         'analysis': analysis_agent,
-        'report': report_agent
+        'report': report_agent,
+        'save_or_upload_report': save_or_upload_report_agent
     }
 
 

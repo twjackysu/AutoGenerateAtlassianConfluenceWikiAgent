@@ -622,3 +622,47 @@ The report has been saved and is ready for access.
         
     except Exception as e:
         return f"❌ **Error saving report**: {str(e)}"
+
+
+@function_tool
+async def upload_to_confluence_shared(
+    content: str,
+    title: str,
+    space_key: str = "DEV",
+    parent_page_id: str = None
+) -> str:
+    """
+    Upload a report to Atlassian Confluence as a wiki page.
+    
+    Args:
+        content: The markdown content to upload
+        title: The title of the wiki page
+        space_key: The Confluence space key (default: "DEV")
+        parent_page_id: Optional parent page ID
+    
+    Returns:
+        Status message with page URL
+    """
+    try:
+        # TODO: Implement Atlassian Confluence API integration
+        # This is a placeholder for future implementation
+        
+        return f"""🚧 **Confluence Integration Coming Soon**
+
+📄 **Would create page**: {title}
+🏠 **In space**: {space_key}
+📊 **Content size**: {len(content)} characters
+{f"📂 **Parent page**: {parent_page_id}" if parent_page_id else ""}
+
+**Next steps for implementation:**
+1. Set up Confluence API credentials
+2. Install atlassian-python-api package
+3. Implement page creation and update logic
+4. Add error handling for API failures
+5. Support for attachments and images
+
+**Current status**: Feature placeholder - use local storage for now
+"""
+        
+    except Exception as e:
+        return f"❌ **Error uploading to Confluence**: {str(e)}"

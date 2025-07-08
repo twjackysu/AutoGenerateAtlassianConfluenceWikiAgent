@@ -40,7 +40,64 @@ async def clone_github_repo_shared(repo_url: str, local_path: str = None, branch
         
         if os.path.exists(local_path):
             # Repository exists, remove it and clone fresh
-            shutil.rmtree(local_path, ignore_errors=True)
+            removal_success = False
+            last_error = None
+            
+            # Method 1: Try normal shutil.rmtree
+            try:
+                shutil.rmtree(local_path, ignore_errors=False)
+                removal_success = not os.path.exists(local_path)
+                if removal_success:
+                    pass  # Success, no need to try other methods
+            except Exception as e:
+                last_error = f"Method 1 failed: {e}"
+            
+            # Method 2: If normal removal fails, try force removal
+            if not removal_success:
+                try:
+                    if os.name == 'nt':  # Windows
+                        result = subprocess.run(['rmdir', '/s', '/q', local_path], 
+                                              shell=True, capture_output=True, text=True)
+                    else:  # Unix/Linux/macOS
+                        result = subprocess.run(['rm', '-rf', local_path], 
+                                              capture_output=True, text=True)
+                    removal_success = not os.path.exists(local_path)
+                    if not removal_success:
+                        last_error = f"Method 2 failed: {result.stderr if result.stderr else 'Unknown error'}"
+                except Exception as e:
+                    last_error = f"Method 2 exception: {e}"
+            
+            # Method 3: Python-based recursive removal with attribute changes
+            if not removal_success:
+                try:
+                    import stat
+                    def remove_readonly(func, path, exc):
+                        try:
+                            os.chmod(path, stat.S_IWRITE)
+                            func(path)
+                        except:
+                            pass
+                    
+                    shutil.rmtree(local_path, onerror=remove_readonly)
+                    removal_success = not os.path.exists(local_path)
+                    if not removal_success:
+                        last_error = "Method 3 failed: Readonly removal unsuccessful"
+                except Exception as e:
+                    last_error = f"Method 3 exception: {e}"
+            
+            # Final check - if directory still exists, create a more informative error
+            if not removal_success and os.path.exists(local_path):
+                # Get directory info for debugging
+                try:
+                    import stat
+                    stat_info = os.stat(local_path)
+                    permissions = oct(stat_info.st_mode)[-3:]
+                    size_info = f", size: {stat_info.st_size} bytes" if os.path.isfile(local_path) else ""
+                    debug_info = f" (permissions: {permissions}{size_info})"
+                except:
+                    debug_info = ""
+                
+                return f"❌ Error: Unable to remove existing directory {local_path}{debug_info}. Last error: {last_error}. Please remove it manually and try again."
             
             # Clone fresh repository
             if branch:

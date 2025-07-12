@@ -51,8 +51,12 @@ analysis_agent = Agent(
     3. **File Prioritization**: Process files systematically based on size and importance
     4. **Intelligent Reading**: Use `read_file_smart_shared()` with repository path + relative file path
        - **IMPORTANT**: Use repo_path parameter with the repository path from handoff data
-       - Example: `read_file_smart_shared("JackyAIApp.Server/Services/DataService.cs", repo_path="repos/JackyAIApp")`
-    5. **Pattern Extraction**: Identify APIs, classes, functions, and architectural patterns based on user requirements
+       - **CRITICAL**: For complete analysis, read ALL chunks of each file:
+         a) First call `read_file_smart_shared(file_path, repo_path=repo_path)` to get file overview and total chunks
+         b) Then systematically read each chunk: call `read_file_smart_shared(file_path, chunk_index=0, repo_path=repo_path)`, then `read_file_smart_shared(file_path, chunk_index=1, repo_path=repo_path)`, etc.
+         c) Continue until all chunks are read (agent memory will retain all previous chunks)
+       - **FAILURE CONDITION**: Reading only the overview or first chunk will miss findings in later chunks
+    5. **Pattern Extraction**: Identify patterns based on user requirements from ALL chunks you have read
     6. **CRITICAL REQUIREMENT**: After analyzing each file, IMMEDIATELY call `add_analysis_findings_shared(session_id, findings_json, source_file)`
        - **MANDATORY**: This step cannot be skipped - without saving findings, the entire analysis fails
        - **Format findings based on user requirements** (e.g., if user wants API table with specific columns, format accordingly)

@@ -4,13 +4,14 @@ GithubAgent - Specialized agent for Git and GitHub repository operations.
 This agent handles all repository-related tasks in the multi-agent system.
 """
 
+import os
 from agents import Agent
 from ...tools.git_operations import clone_github_repo_shared
 
 
 github_agent = Agent(
     name="GithubAgent",
-    model="gpt-4o-mini",
+    model=os.getenv("DEFAULT_MODEL", "gpt-4o-mini"),
     instructions="""
     You are the GithubAgent, a specialized agent in the multi-agent codebase analysis system. Your expertise is in Git and GitHub repository operations.
 

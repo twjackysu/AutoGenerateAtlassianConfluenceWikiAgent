@@ -18,15 +18,33 @@ sys.path.insert(0, str(project_root))
 env_path = project_root / '.env'
 load_dotenv(env_path)
 
-from agents import Runner
+from openai import AsyncOpenAI
+from agents import Runner, set_default_openai_api, set_default_openai_client, set_tracing_disabled
 from src.ai_agents.supervisor_agent import supervisor_agent
 
 # Check if OpenAI API key is available
-if not os.getenv('OPENAI_API_KEY'):
-    print("❌ Error: OPENAI_API_KEY environment variable is not set!")
-    print("Please create a .env file in the project root with:")
-    print("OPENAI_API_KEY=your_openai_api_key_here")
-    exit(1)
+# if not os.getenv('OPENAI_API_KEY'):
+#     print("❌ Error: OPENAI_API_KEY environment variable is not set!")
+#     print("Please create a .env file in the project root with:")
+#     print("OPENAI_API_KEY=your_openai_api_key_here")
+#     exit(1)
+
+BASE_URL = os.getenv("CUSTOM_AI_ENDPOINT") or ""
+API_KEY = os.getenv("CUSTOM_AI_ENDPOINT_API_KEY") or ""
+MODEL_NAME = os.getenv("DEFAULT_MODEL") or ""
+
+if not BASE_URL or not API_KEY or not MODEL_NAME:
+    raise ValueError(
+        "Please set CUSTOM_AI_ENDPOINT, CUSTOM_AI_ENDPOINT_API_KEY, DEFAULT_MODEL via env var or code."
+    )
+
+client = AsyncOpenAI(
+    base_url=BASE_URL,
+    api_key=API_KEY,
+)
+set_default_openai_client(client=client, use_for_tracing=False)
+set_default_openai_api("chat_completions")
+set_tracing_disabled(disabled=True)
 
 async def test_multi_agent_coordination():
     """Test multi-agent system coordination"""

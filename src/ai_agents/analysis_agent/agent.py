@@ -4,6 +4,7 @@ AnalysisAgent - Specialized agent for comprehensive codebase analysis.
 This agent performs the core analysis work in the multi-agent system.
 """
 
+import os
 from agents import Agent
 from ...tools.file_operations import (
     scan_repository_extensions_shared,
@@ -19,7 +20,7 @@ from ...tools.context_operations import (
 
 analysis_agent = Agent(
     name="AnalysisAgent",
-    model="gpt-4o-mini",
+    model=os.getenv("DEFAULT_MODEL", "gpt-4o-mini"),
     instructions="""
     You are the AnalysisAgent, the core analysis specialist in the multi-agent codebase analysis system. Your expertise is in comprehensive code analysis, pattern recognition, and extracting meaningful insights from codebases.
 

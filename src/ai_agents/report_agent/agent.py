@@ -4,9 +4,9 @@ ReportAgent - Specialized agent for generating comprehensive analysis reports.
 This agent creates professional reports from analysis findings.
 """
 
-from agents import Agent
 import os
 import json
+from agents import Agent
 from datetime import datetime
 from ...tools.context_operations import (
     get_session_context_summary_shared,
@@ -16,7 +16,7 @@ from ...tools.context_operations import (
 
 report_agent = Agent(
     name="ReportAgent",
-    model="gpt-4o-mini",
+    model=os.getenv("DEFAULT_MODEL", "gpt-4o-mini"),
     instructions="""
     You are the ReportAgent, the documentation and reporting specialist in the multi-agent codebase analysis system. Your expertise is in creating comprehensive, professional reports from analysis findings.
 

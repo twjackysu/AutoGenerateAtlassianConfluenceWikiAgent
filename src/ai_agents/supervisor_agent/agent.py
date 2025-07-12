@@ -5,6 +5,7 @@ This agent orchestrates the entire analysis workflow by coordinating
 with specialized agents (GithubAgent, AnalysisAgent, ReportAgent).
 """
 
+import os
 from agents import Agent
 from ...tools.batch_operations import (
     create_processing_session_shared,
@@ -16,7 +17,7 @@ from ...tools.context_operations import get_session_context_summary_shared
 
 supervisor_agent = Agent(
     name="SupervisorAgent",
-    model="gpt-4o-mini",
+    model=os.getenv("DEFAULT_MODEL", "gpt-4o-mini"),
     instructions="""
     You are the SupervisorAgent, the main coordinator of a multi-agent codebase analysis system. Your role is to orchestrate the entire analysis workflow by intelligently coordinating with specialized agents.
 

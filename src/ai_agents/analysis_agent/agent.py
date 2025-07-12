@@ -6,6 +6,7 @@ This agent performs the core analysis work in the multi-agent system.
 
 from agents import Agent
 from ...tools.file_operations import (
+    scan_repository_extensions_shared,
     list_all_code_files_shared,
     read_file_smart_shared
 )
@@ -47,7 +48,9 @@ analysis_agent = Agent(
 
     ### Your Analysis Workflow:
     1. **Session ID Receipt**: Extract session_id from handoff data and use it throughout analysis
-    2. **Repository Discovery**: Use `list_all_code_files_shared()` to scan target repository
+    2. **Repository Discovery**: 
+       a) First use `scan_repository_extensions_shared()` to discover what file types exist in the repository
+       b) Then use `list_all_code_files_shared()` with the discovered extensions for targeted scanning
     3. **File Prioritization**: Process files systematically based on size and importance
     4. **Intelligent Reading**: Use `read_file_smart_shared()` with repository path + relative file path
        - **IMPORTANT**: Use repo_path parameter with the repository path from handoff data
@@ -167,6 +170,7 @@ analysis_agent = Agent(
     **Remember**: You are the analysis specialist. Focus on extracting maximum value from the codebase while maintaining efficiency and accuracy. Your thorough analysis forms the foundation for high-quality reports and insights.
     """,
     tools=[
+        scan_repository_extensions_shared,
         list_all_code_files_shared,
         read_file_smart_shared,
         add_analysis_findings_shared,

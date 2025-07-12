@@ -131,6 +131,113 @@ def detect_language(file_path: str) -> str:
 
 
 @function_tool
+async def scan_repository_extensions_shared(
+    repo_path: str,
+    include_config: bool = True
+) -> str:
+    """
+    Scan repository to discover all file extensions present.
+    Use this before list_all_code_files_shared to understand what languages are in the repo.
+    
+    Args:
+        repo_path: Path to the repository root
+        include_config: Whether to include configuration files
+    
+    Returns:
+        Summary of all extensions found in the repository
+    """
+    try:
+        # Check if this looks like a GitHub repo name and adjust path
+        if not os.path.exists(repo_path):
+            potential_repo_path = os.path.join("repos", repo_path)
+            if os.path.exists(potential_repo_path):
+                repo_path = potential_repo_path
+            else:
+                return f"❌ Error: Repository path does not exist: {repo_path} (also tried repos/{repo_path})"
+        
+        repo_path = os.path.abspath(repo_path)
+        extension_counts = {}
+        total_files = 0
+        
+        # Walk through directory tree
+        for root, dirs, file_names in os.walk(repo_path):
+            # Filter out directories to skip
+            dirs[:] = [d for d in dirs if not should_skip_directory(d)]
+            
+            for file_name in file_names:
+                # Skip unwanted files
+                if should_skip_file(file_name):
+                    continue
+                
+                file_ext = Path(file_name).suffix.lower()
+                if file_ext:  # Only count files with extensions
+                    extension_counts[file_ext] = extension_counts.get(file_ext, 0) + 1
+                    total_files += 1
+        
+        # Categorize extensions
+        code_extensions = {}
+        config_extensions = {}
+        other_extensions = {}
+        
+        for ext, count in extension_counts.items():
+            language = LANGUAGE_EXTENSIONS.get(ext, 'Unknown')
+            if ext in LANGUAGE_EXTENSIONS:
+                code_extensions[ext] = {'count': count, 'language': language}
+            elif ext in {'.yaml', '.yml', '.json', '.xml', '.toml', '.ini', '.cfg', '.conf'}:
+                config_extensions[ext] = {'count': count, 'type': 'Configuration'}
+            else:
+                other_extensions[ext] = {'count': count, 'type': 'Other'}
+        
+        # Generate report
+        output = f"""# 🔍 Repository Extension Scan
+        
+## 📊 Scan Summary
+- **Repository**: `{repo_path}`
+- **Total Files Scanned**: {total_files:,}
+- **Unique Extensions**: {len(extension_counts)}
+
+## 💻 Code Files Found
+"""
+        
+        if code_extensions:
+            for ext, info in sorted(code_extensions.items(), key=lambda x: x[1]['count'], reverse=True):
+                output += f"- **{ext}** ({info['language']}): {info['count']} files\n"
+        else:
+            output += "- No recognized code files found\n"
+        
+        if config_extensions and include_config:
+            output += f"""
+## ⚙️ Configuration Files Found
+"""
+            for ext, info in sorted(config_extensions.items(), key=lambda x: x[1]['count'], reverse=True):
+                output += f"- **{ext}** ({info['type']}): {info['count']} files\n"
+        
+        if other_extensions:
+            output += f"""
+## 📄 Other Files Found
+"""
+            for ext, info in sorted(other_extensions.items(), key=lambda x: x[1]['count'], reverse=True):
+                output += f"- **{ext}** ({info['type']}): {info['count']} files\n"
+        
+        # Provide recommendations
+        recommended_extensions = list(code_extensions.keys())
+        if include_config:
+            recommended_extensions.extend(config_extensions.keys())
+        
+        output += f"""
+## 💡 Recommendations
+**Suggested extensions for analysis**: {recommended_extensions}
+
+**Next step**: Use `list_all_code_files_shared(repo_path, extensions={recommended_extensions})` for targeted analysis.
+"""
+        
+        return output
+        
+    except Exception as e:
+        return f"❌ Error scanning repository extensions: {str(e)}"
+
+
+@function_tool
 async def list_all_code_files_shared(
     repo_path: str,
     extensions: Optional[List[str]] = None,

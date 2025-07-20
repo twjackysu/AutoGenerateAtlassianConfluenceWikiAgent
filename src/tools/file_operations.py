@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import List, Dict, Optional, Set, Union, Tuple
 from dataclasses import dataclass
 from agents import function_tool
+from atlassian import Confluence
+import requests
+from datetime import datetime
 
 
 @dataclass
@@ -731,45 +734,396 @@ The report has been saved and is ready for access.
         return f"❌ **Error saving report**: {str(e)}"
 
 
+def _get_confluence_client() -> Optional[Confluence]:
+    """
+    Create and return a Confluence client using environment variables.
+    
+    Required environment variables:
+    - CONFLUENCE_URL: Your Atlassian instance URL (e.g., https://your-domain.atlassian.net)
+    - CONFLUENCE_EMAIL: Your email address
+    - CONFLUENCE_API_TOKEN: Your API token
+    
+    Returns:
+        Confluence client or None if configuration is missing
+    """
+    try:
+        url = os.getenv('CONFLUENCE_URL')
+        email = os.getenv('CONFLUENCE_EMAIL')
+        token = os.getenv('CONFLUENCE_API_TOKEN')
+        
+        if not all([url, email, token]):
+            missing = []
+            if not url: missing.append('CONFLUENCE_URL')
+            if not email: missing.append('CONFLUENCE_EMAIL')
+            if not token: missing.append('CONFLUENCE_API_TOKEN')
+            raise ValueError(f"Missing environment variables: {', '.join(missing)}")
+        
+        confluence = Confluence(
+            url=url,
+            username=email,
+            password=token,
+            cloud=True
+        )
+        
+        # Test connection
+        confluence.get_all_spaces(limit=1)
+        return confluence
+        
+    except Exception as e:
+        print(f"Failed to initialize Confluence client: {str(e)}")
+        return None
+
+
+def _convert_markdown_to_confluence_storage(markdown_content: str) -> str:
+    """
+    Convert Markdown content to Confluence Storage Format.
+    
+    Args:
+        markdown_content: Markdown content string
+        
+    Returns:
+        Confluence storage format string
+    """
+    # Basic Markdown to Confluence conversion
+    # This is a simplified converter - for production use, consider using a proper converter
+    content = markdown_content
+    
+    # Headers
+    content = re.sub(r'^# (.*?)$', r'<h1>\1</h1>', content, flags=re.MULTILINE)
+    content = re.sub(r'^## (.*?)$', r'<h2>\1</h2>', content, flags=re.MULTILINE)
+    content = re.sub(r'^### (.*?)$', r'<h3>\1</h3>', content, flags=re.MULTILINE)
+    content = re.sub(r'^#### (.*?)$', r'<h4>\1</h4>', content, flags=re.MULTILINE)
+    content = re.sub(r'^##### (.*?)$', r'<h5>\1</h5>', content, flags=re.MULTILINE)
+    content = re.sub(r'^###### (.*?)$', r'<h6>\1</h6>', content, flags=re.MULTILINE)
+    
+    # Bold and Italic
+    content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', content)
+    content = re.sub(r'\*(.*?)\*', r'<em>\1</em>', content)
+    
+    # Code blocks
+    content = re.sub(r'```(\w+)?\n(.*?)\n```', r'<ac:structured-macro ac:name="code"><ac:parameter ac:name="language">\1</ac:parameter><ac:plain-text-body><![CDATA[\2]]></ac:plain-text-body></ac:structured-macro>', content, flags=re.DOTALL)
+    
+    # Inline code
+    content = re.sub(r'`(.*?)`', r'<code>\1</code>', content)
+    
+    # Lists (simplified)
+    content = re.sub(r'^- (.*?)$', r'<ul><li>\1</li></ul>', content, flags=re.MULTILINE)
+    content = re.sub(r'^(\d+)\. (.*?)$', r'<ol><li>\2</li></ol>', content, flags=re.MULTILINE)
+    
+    # Line breaks
+    content = content.replace('\n\n', '<br/><br/>')
+    content = content.replace('\n', '<br/>')
+    
+    return content
+
+
+@function_tool
+async def search_confluence_spaces_shared(
+    query: str = "",
+    limit: int = 25
+) -> str:
+    """
+    Search for Confluence spaces by name or key.
+    
+    Args:
+        query: Search query (space name or key). If empty, returns all spaces.
+        limit: Maximum number of spaces to return (default: 25)
+    
+    Returns:
+        Formatted list of spaces with keys, names, and URLs
+    """
+    try:
+        confluence = _get_confluence_client()
+        if not confluence:
+            return "❌ **Error**: Could not connect to Confluence. Please check your environment variables."
+        
+        # Get all spaces
+        spaces = confluence.get_all_spaces(limit=limit)
+        
+        # Filter by query if provided
+        if query:
+            query_lower = query.lower()
+            filtered_spaces = []
+            for space in spaces:
+                if (query_lower in space.get('name', '').lower() or 
+                    query_lower in space.get('key', '').lower()):
+                    filtered_spaces.append(space)
+            spaces = filtered_spaces
+        
+        if not spaces:
+            return f"📭 **No spaces found** matching query: '{query}'"
+        
+        output = f"""# 🏠 Confluence Spaces Found
+
+## 📊 Search Results
+- **Query**: "{query}" (showing {len(spaces)} results)
+- **Total found**: {len(spaces)} spaces
+
+## 📋 Space List
+"""
+        
+        for space in spaces:
+            space_key = space.get('key', 'N/A')
+            space_name = space.get('name', 'Unnamed')
+            space_type = space.get('type', 'Unknown')
+            space_url = f"{os.getenv('CONFLUENCE_URL', '')}/spaces/{space_key}"
+            
+            output += f"""
+### 🏷️ {space_name}
+- **Key**: `{space_key}`
+- **Type**: {space_type}
+- **URL**: {space_url}
+"""
+        
+        output += f"""
+
+## 💡 Next Steps
+To search for pages in a specific space, use:
+`search_confluence_pages_shared(space_key="SPACE_KEY", query="your search")`
+
+To get detailed information about a space, use the space key from above.
+"""
+        
+        return output
+        
+    except Exception as e:
+        return f"❌ **Error searching spaces**: {str(e)}"
+
+
+@function_tool
+async def search_confluence_pages_shared(
+    space_key: str,
+    query: str = "",
+    limit: int = 25
+) -> str:
+    """
+    Search for pages in a specific Confluence space.
+    
+    Args:
+        space_key: The key of the space to search in
+        query: Search query (page title or content). If empty, returns all pages in space.
+        limit: Maximum number of pages to return (default: 25)
+    
+    Returns:
+        Formatted list of pages with IDs, titles, and URLs
+    """
+    try:
+        confluence = _get_confluence_client()
+        if not confluence:
+            return "❌ **Error**: Could not connect to Confluence. Please check your environment variables."
+        
+        # Get pages from space
+        pages = confluence.get_all_pages_from_space(space_key, limit=limit)
+        
+        # Filter by query if provided
+        if query:
+            query_lower = query.lower()
+            filtered_pages = []
+            for page in pages:
+                if query_lower in page.get('title', '').lower():
+                    filtered_pages.append(page)
+            pages = filtered_pages
+        
+        if not pages:
+            return f"📭 **No pages found** in space '{space_key}' matching query: '{query}'"
+        
+        output = f"""# 📄 Confluence Pages Found
+
+## 📊 Search Results
+- **Space**: {space_key}
+- **Query**: "{query}"
+- **Results**: {len(pages)} pages found
+
+## 📋 Page List
+"""
+        
+        for page in pages:
+            page_id = page.get('id', 'N/A')
+            page_title = page.get('title', 'Untitled')
+            page_url = f"{os.getenv('CONFLUENCE_URL', '')}/spaces/{space_key}/pages/{page_id}"
+            
+            output += f"""
+### 📝 {page_title}
+- **ID**: `{page_id}`
+- **Space**: {space_key}
+- **URL**: {page_url}
+"""
+        
+        output += f"""
+
+## 💡 Next Steps
+To get detailed information about a page, use:
+`get_confluence_page_info_shared(page_id="PAGE_ID")`
+
+To update or create a page, use the page ID from above with:
+`upload_to_confluence_shared(content="...", title="...", space_key="{space_key}", page_id="PAGE_ID")`
+"""
+        
+        return output
+        
+    except Exception as e:
+        return f"❌ **Error searching pages**: {str(e)}"
+
+
+@function_tool
+async def get_confluence_page_info_shared(
+    page_id: str
+) -> str:
+    """
+    Get detailed information about a specific Confluence page.
+    
+    Args:
+        page_id: The ID of the page to get information about
+    
+    Returns:
+        Detailed page information including title, space, content preview, and metadata
+    """
+    try:
+        confluence = _get_confluence_client()
+        if not confluence:
+            return "❌ **Error**: Could not connect to Confluence. Please check your environment variables."
+        
+        # Get page details
+        page = confluence.get_page_by_id(page_id, expand='body.storage,space,version,ancestors')
+        
+        if not page:
+            return f"❌ **Page not found**: No page with ID '{page_id}'"
+        
+        page_title = page.get('title', 'Untitled')
+        space_info = page.get('space', {})
+        space_key = space_info.get('key', 'Unknown')
+        space_name = space_info.get('name', 'Unknown')
+        version_info = page.get('version', {})
+        version_number = version_info.get('number', 'Unknown')
+        
+        # Get content preview
+        body = page.get('body', {})
+        storage = body.get('storage', {})
+        content = storage.get('value', '')
+        content_preview = content[:500] + "..." if len(content) > 500 else content
+        
+        # Get ancestors (parent pages)
+        ancestors = page.get('ancestors', [])
+        parent_path = " → ".join([ancestor.get('title', 'Unknown') for ancestor in ancestors])
+        
+        page_url = f"{os.getenv('CONFLUENCE_URL', '')}/spaces/{space_key}/pages/{page_id}"
+        
+        output = f"""# 📄 Confluence Page Details
+
+## 📊 Page Information
+- **Title**: {page_title}
+- **ID**: `{page_id}`
+- **Space**: {space_name} (`{space_key}`)
+- **Version**: {version_number}
+- **URL**: {page_url}
+
+## 📂 Page Hierarchy
+{f"**Path**: {parent_path} → {page_title}" if parent_path else "**Location**: Root level"}
+
+## 📝 Content Preview
+```html
+{content_preview}
+```
+
+## 💡 Available Actions
+- **Update this page**: Use `upload_to_confluence_shared(content="...", title="{page_title}", space_key="{space_key}", page_id="{page_id}")`
+- **Create child page**: Use `upload_to_confluence_shared(content="...", title="New Page", space_key="{space_key}", parent_page_id="{page_id}")`
+"""
+        
+        return output
+        
+    except Exception as e:
+        return f"❌ **Error getting page info**: {str(e)}"
+
+
 @function_tool
 async def upload_to_confluence_shared(
     content: str,
     title: str,
-    space_key: str = "DEV",
+    space_key: str,
+    page_id: str = None,
     parent_page_id: str = None
 ) -> str:
     """
-    Upload a report to Atlassian Confluence as a wiki page.
+    Upload or update a report to Atlassian Confluence as a wiki page.
     
     Args:
         content: The markdown content to upload
         title: The title of the wiki page
-        space_key: The Confluence space key (default: "DEV")
-        parent_page_id: Optional parent page ID
+        space_key: The Confluence space key
+        page_id: If provided, update this existing page. If None, create new page.
+        parent_page_id: If creating new page, set this as parent page ID
     
     Returns:
-        Status message with page URL
+        Status message with page URL and details
     """
     try:
-        # TODO: Implement Atlassian Confluence API integration
-        # This is a placeholder for future implementation
+        confluence = _get_confluence_client()
+        if not confluence:
+            return "❌ **Error**: Could not connect to Confluence. Please check your environment variables."
         
-        return f"""🚧 **Confluence Integration Coming Soon**
+        # Convert markdown to Confluence storage format
+        confluence_content = _convert_markdown_to_confluence_storage(content)
+        
+        if page_id:
+            # Update existing page
+            try:
+                current_page = confluence.get_page_by_id(page_id, expand='version')
+                current_version = current_page.get('version', {}).get('number', 1)
+                
+                result = confluence.update_page(
+                    page_id=page_id,
+                    title=title,
+                    body=confluence_content,
+                    version_number=current_version + 1
+                )
+                
+                page_url = f"{os.getenv('CONFLUENCE_URL', '')}/spaces/{space_key}/pages/{page_id}"
+                
+                return f"""✅ **Page Updated Successfully**
 
-📄 **Would create page**: {title}
-🏠 **In space**: {space_key}
-📊 **Content size**: {len(content)} characters
-{f"📂 **Parent page**: {parent_page_id}" if parent_page_id else ""}
+📄 **Page**: {title}
+🆔 **Page ID**: {page_id}
+🏠 **Space**: {space_key}
+📊 **Content Size**: {len(content):,} characters
+🔗 **URL**: {page_url}
+📝 **Version**: {current_version + 1}
+🕐 **Updated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-**Next steps for implementation:**
-1. Set up Confluence API credentials
-2. Install atlassian-python-api package
-3. Implement page creation and update logic
-4. Add error handling for API failures
-5. Support for attachments and images
-
-**Current status**: Feature placeholder - use local storage for now
+The page has been updated and is now live on Confluence.
 """
+                
+            except Exception as e:
+                return f"❌ **Error updating page**: {str(e)}"
+        
+        else:
+            # Create new page
+            try:
+                result = confluence.create_page(
+                    space=space_key,
+                    title=title,
+                    body=confluence_content,
+                    parent_id=parent_page_id
+                )
+                
+                new_page_id = result.get('id')
+                page_url = f"{os.getenv('CONFLUENCE_URL', '')}/spaces/{space_key}/pages/{new_page_id}"
+                
+                return f"""✅ **Page Created Successfully**
+
+📄 **Page**: {title}
+🆔 **New Page ID**: {new_page_id}
+🏠 **Space**: {space_key}
+📊 **Content Size**: {len(content):,} characters
+🔗 **URL**: {page_url}
+{f"📂 **Parent Page ID**: {parent_page_id}" if parent_page_id else "📂 **Location**: Root level"}
+🕐 **Created**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+The new page has been created and is now live on Confluence.
+"""
+                
+            except Exception as e:
+                return f"❌ **Error creating page**: {str(e)}"
         
     except Exception as e:
         return f"❌ **Error uploading to Confluence**: {str(e)}"

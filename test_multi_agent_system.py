@@ -55,7 +55,7 @@ async def test_multi_agent_coordination():
     print("Step 1: Testing SupervisorAgent orchestration...")
     supervisor_result = await Runner.run(
         supervisor_agent,
-        "Analyze the GitHub repository 'twjackysu/JackyAIApp' and generate api endpoint reports. The report must include at least one table and contain at least four columns: API Endpoint, File Name, Class Name, and Method Name. Save report to './test_reports/multi_agent/'.",
+        "Analyze the GitHub repository 'twjackysu/JackyAIApp' and generate api endpoint reports. The report must include at least one table and contain at least four columns: API Endpoint, File Name, Class Name, and Method Name. create a new page under the https://___.atlassian.net/wiki/spaces/___/pages/___/AI+Generated in Atlassian Confluence, and place the report there.",
         max_turns=200
     )
     print("SupervisorAgent Result:")

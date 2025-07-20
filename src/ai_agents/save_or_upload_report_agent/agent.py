@@ -8,7 +8,13 @@ import os
 import json
 from agents import Agent
 from datetime import datetime
-from ...tools.file_operations import save_report_file_shared, upload_to_confluence_shared
+from ...tools.file_operations import (
+    save_report_file_shared, 
+    upload_to_confluence_shared,
+    search_confluence_spaces_shared,
+    search_confluence_pages_shared,
+    get_confluence_page_info_shared
+)
 
 
 save_or_upload_report_agent = Agent(
@@ -54,10 +60,11 @@ save_or_upload_report_agent = Agent(
     - **Organization**: Logical directory structure by date/session/type
     - **Backup**: Ensure files are saved with proper encoding and permissions
 
-    #### 🌐 Future: Confluence Wiki Integration
-    - **Page Creation**: Convert markdown to Confluence wiki markup
-    - **Space Organization**: Organize pages within appropriate spaces
-    - **Metadata**: Include proper page metadata and labels
+    #### 🌐 Confluence Wiki Integration
+    - **Space Discovery**: Search and discover available Confluence spaces
+    - **Page Management**: Create, update, and organize wiki pages
+    - **Smart Location**: Help users find the right space and parent page
+    - **Content Conversion**: Convert markdown to Confluence storage format
     - **Version Control**: Handle page updates and version history
 
     ## 🎯 Dynamic Storage Requirements Processing
@@ -74,7 +81,10 @@ save_or_upload_report_agent = Agent(
 
     **Common Storage Request Patterns**:
     - **"local"** or **"save locally"** → Use `save_report_file_shared()` for local filesystem storage
-    - **"confluence"** or **"wiki"** → Use `upload_to_confluence_shared()` for Atlassian Confluence (placeholder)
+    - **"confluence"** or **"wiki"** → Use Confluence integration tools:
+      1. `search_confluence_spaces_shared()` - Find available spaces
+      2. `search_confluence_pages_shared()` - Find target pages in space
+      3. `upload_to_confluence_shared()` - Create or update pages
     - **"google drive"** → Use Google Drive API (future)
     - **"onedrive"** → Use OneDrive API (future)
 
@@ -98,13 +108,14 @@ save_or_upload_report_agent = Agent(
     → Return storage confirmation with file path
     ```
     
-    **Confluence Wiki (Future):**
+    **Confluence Wiki Integration:**
     ```
-    User wants: "Upload this to Confluence wiki"
+    User wants: "Upload this to Confluence space XYZ"
     → Receive report content from ReportAgent
-    → Generate appropriate page title
-    → Use upload_to_confluence_shared() to create wiki page
-    → Verify page was created successfully
+    → Use search_confluence_spaces_shared() to find space "XYZ"
+    → If user specified page, use search_confluence_pages_shared() to find target page
+    → Use upload_to_confluence_shared() to create/update wiki page
+    → Verify page was created/updated successfully
     → Return page URL and access information
     ```
 
@@ -133,12 +144,13 @@ save_or_upload_report_agent = Agent(
     Status: Successfully saved
     ```
 
-    For Confluence integration (placeholder ready):
+    For Confluence integration:
     ```
     Page: API Analysis Report - Session 12345
-    Space: Development Documentation
-    Status: Placeholder response - implementation needed
-    Tool: upload_to_confluence_shared() available
+    Space: Development Documentation (DEV)
+    Page ID: 123456789
+    URL: https://your-domain.atlassian.net/spaces/DEV/pages/123456789
+    Status: Successfully created/updated
     ```
 
     ## 🔄 Context Integration
@@ -163,11 +175,10 @@ save_or_upload_report_agent = Agent(
     - **File Details**: Include file size, format, and storage location
     - **Error Handling**: Clear error messages if storage fails
 
-    ### Future Expansion:
-    - **Cloud Integration**: APIs for Google Drive, OneDrive, etc.
-    - **Confluence Integration**: `upload_to_confluence_shared()` tool ready - needs API implementation
-    - **Notification Systems**: Email/Slack notifications for report delivery
-    - **Archive Management**: Long-term storage and retrieval systems
+    ### Available Integrations:
+    - **Local Storage**: Direct filesystem storage with organized directory structure
+    - **Confluence Integration**: Full API integration with space/page discovery and management
+    - **Future Expansion**: Google Drive, OneDrive, notification systems, archive management
 
     ## 🔄 Handoff Protocol
 
@@ -198,7 +209,10 @@ save_or_upload_report_agent = Agent(
     """,
     tools=[
         save_report_file_shared,
-        upload_to_confluence_shared
+        upload_to_confluence_shared,
+        search_confluence_spaces_shared,
+        search_confluence_pages_shared,
+        get_confluence_page_info_shared
     ]
     # handoffs will be configured after all agents are created
 )

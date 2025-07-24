@@ -479,7 +479,7 @@ def _format_file_listing_output(result: Dict) -> str:
             output += f"- `{skipped['path']}`: {skipped['reason']}\n"
     
     output += f"\n## 📄 Complete File Listing\n"
-    output += f"**Note**: To read files, use repository path + relative path with read_file_smart_shared()\n\n"
+    output += f"**Note**: Use CodeExplorerAgent to read and cache file content for AnalysisAgent consumption\n\n"
     for i, file_info in enumerate(files, 1):
         output += f"{i:3d}. `{file_info['relative_path']}` "
         output += f"({file_info['size_mb']:.2f} MB, {file_info['estimated_tokens']:,} tokens, {file_info['language']})\n"
@@ -658,7 +658,8 @@ def _format_full_file_output(result: ReadResult) -> str:
     output += f"""
 
 ## 🔄 How to Access Content
-To read the actual content, use `read_file_smart_shared()` with specific chunk indices:
+For AnalysisAgent: Use cached content via `get_cached_file_content_shared()` after CodeExplorerAgent caches it.
+For CodeExplorerAgent: Use `read_file_smart_shared()` with specific chunk indices:
 
 """
     
@@ -681,7 +682,8 @@ To read the actual content, use `read_file_smart_shared()` with specific chunk i
 {preview_content}
 ```
 
-⚠️ **Note**: Use `read_file_smart_shared()` with `chunk_index` parameter to read specific chunks.
+⚠️ **Note for CodeExplorerAgent**: Use `read_file_smart_shared()` with `chunk_index` parameter to read specific chunks.
+📝 **Note for AnalysisAgent**: Use `get_cached_file_content_shared()` to access cached content.
 """
     
     return output
@@ -1328,8 +1330,11 @@ async def scan_files_by_pattern_shared(
         output += f"""
         
 ## 💡 Usage with Analysis Tools
-To analyze these files, use:
+For CodeExplorerAgent - to read and cache files:
 - `read_file_smart_shared(file_path, repo_path="{repo_path}")` for content analysis
+For AnalysisAgent - to access cached content:
+- `get_cached_file_content_shared(session_id, file_path)` for analyzing cached content
+Additional tools:
 - `list_all_code_files_shared("{repo_path}", extensions=[...])` for comprehensive scanning
         """
         
@@ -1546,7 +1551,8 @@ async def find_code_references_shared(
         
         output += f"""
 ## 💡 Usage Tips
-- **Read specific file**: `read_file_smart_shared("{definitions[0]['relative_path'] if definitions else references[0]['relative_path'] if references else 'path'}", repo_path="{repo_path}")`
+- **For CodeExplorerAgent**: Use `read_file_smart_shared()` to read and cache file content
+- **For AnalysisAgent**: Use `get_cached_file_content_shared()` to access cached content
 - **Search related symbols**: Use `find_code_references_shared()` with related function/class names
 - **Analyze file context**: Use `get_file_context_shared()` for broader understanding
 """

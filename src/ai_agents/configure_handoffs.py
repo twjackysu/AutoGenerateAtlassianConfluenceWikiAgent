@@ -70,7 +70,6 @@ def configure_multi_agent_handoffs():
     from .github_agent import github_agent
     from .code_explorer_agent import code_explorer_agent
     from .analysis_agent import analysis_agent
-    from .report_agent import report_agent
     from .save_or_upload_report_agent import save_or_upload_report_agent
     from agents import handoff
     
@@ -79,7 +78,6 @@ def configure_multi_agent_handoffs():
         handoff(github_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
         handoff(code_explorer_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
         handoff(analysis_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData), 
-        handoff(report_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
         handoff(save_or_upload_report_agent, on_handoff=report_handoff_callback, input_type=ReportHandoffData)
     ]
     
@@ -97,14 +95,7 @@ def configure_multi_agent_handoffs():
     # Configure AnalysisAgent handoffs
     analysis_agent.handoffs = [
         handoff(supervisor_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
-        handoff(code_explorer_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
-        handoff(report_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData)
-    ]
-    
-    # Configure ReportAgent handoffs
-    report_agent.handoffs = [
-        handoff(supervisor_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
-        handoff(save_or_upload_report_agent, on_handoff=report_handoff_callback, input_type=ReportHandoffData)
+        handoff(code_explorer_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData)
     ]
     
     # Configure SaveOrUploadReportAgent handoffs
@@ -118,7 +109,6 @@ def configure_multi_agent_handoffs():
         'github': github_agent,
         'code_explorer': code_explorer_agent, 
         'analysis': analysis_agent,
-        'report': report_agent,
         'save_or_upload_report': save_or_upload_report_agent
     }
 

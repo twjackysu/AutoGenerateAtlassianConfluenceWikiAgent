@@ -547,6 +547,254 @@ File content is now available for AnalysisAgent to access.
 
 
 @function_tool
+async def initialize_progressive_report_shared(
+    session_id: str,
+    report_title: str,
+    user_requirements: str,
+    output_format: str = "markdown"
+) -> str:
+    """
+    Initialize a progressive report that will be built incrementally during analysis.
+    
+    Args:
+        session_id: ID of the processing session
+        report_title: Title for the report
+        user_requirements: User's specific requirements for the report
+        output_format: Format of the report (markdown, table, list, etc.)
+    
+    Returns:
+        Confirmation of report initialization
+    """
+    try:
+        # Ensure cache directory exists
+        cache_dir = "./cache"
+        os.makedirs(cache_dir, exist_ok=True)
+        
+        # Load or create shared context file
+        context_file = f"./cache/shared_context_{session_id}.json"
+        if os.path.exists(context_file):
+            with open(context_file, 'r', encoding='utf-8') as f:
+                shared_context = json.load(f)
+        else:
+            shared_context = {
+                "session_id": session_id,
+                "created_at": datetime.now().isoformat(),
+                "exploration_results": {},
+                "processing_status": {
+                    "processed_files": [],
+                    "file_contexts": {}
+                },
+                "content_cache": {},
+                "analysis_findings": []
+            }
+        
+        # Initialize progressive report structure
+        shared_context["progressive_report"] = {
+            "title": report_title,
+            "user_requirements": user_requirements,
+            "output_format": output_format,
+            "initialized_at": datetime.now().isoformat(),
+            "sections": {
+                "executive_summary": "",
+                "main_content": "",
+                "technical_details": "",
+                "recommendations": ""
+            },
+            "data_accumulator": [],  # Collect structured data (for tables, lists)
+            "last_updated": datetime.now().isoformat()
+        }
+        
+        shared_context["last_updated"] = datetime.now().isoformat()
+        
+        # Save updated shared context
+        with open(context_file, 'w', encoding='utf-8') as f:
+            json.dump(shared_context, f, indent=2, ensure_ascii=False)
+        
+        output = f"""✅ **Progressive Report Initialized**
+
+📊 **Report Details**
+- **Session**: {session_id}
+- **Title**: {report_title}
+- **Format**: {output_format}
+- **User Requirements**: {user_requirements[:100]}{'...' if len(user_requirements) > 100 else ''}
+
+🔄 **Ready for Incremental Updates**
+Report will be built progressively as analysis proceeds.
+"""
+        
+        return output
+        
+    except Exception as e:
+        return f"❌ Error initializing progressive report: {str(e)}"
+
+
+@function_tool
+async def update_progressive_report_shared(
+    session_id: str,
+    section: str,
+    content: str,
+    data_entry: Optional[str] = None,
+    append_mode: bool = True
+) -> str:
+    """
+    Update a section of the progressive report with new content.
+    
+    Args:
+        session_id: ID of the processing session
+        section: Section to update (executive_summary, main_content, technical_details, recommendations)
+        content: Content to add to the section
+        data_entry: Optional structured data entry (JSON string) for tables/lists
+        append_mode: True to append, False to replace section content
+    
+    Returns:
+        Confirmation of report update
+    """
+    try:
+        # Load shared context file
+        context_file = f"./cache/shared_context_{session_id}.json"
+        if not os.path.exists(context_file):
+            return f"❌ Shared context not found for session: {session_id}. Initialize report first."
+        
+        with open(context_file, 'r', encoding='utf-8') as f:
+            shared_context = json.load(f)
+        
+        if "progressive_report" not in shared_context:
+            return f"❌ Progressive report not initialized for session: {session_id}"
+        
+        # Update the specified section
+        if section in shared_context["progressive_report"]["sections"]:
+            if append_mode:
+                shared_context["progressive_report"]["sections"][section] += content
+            else:
+                shared_context["progressive_report"]["sections"][section] = content
+        else:
+            return f"❌ Invalid section: {section}. Valid sections: {list(shared_context['progressive_report']['sections'].keys())}"
+        
+        # Add structured data entry if provided
+        if data_entry:
+            try:
+                data_dict = json.loads(data_entry) if isinstance(data_entry, str) else data_entry
+                shared_context["progressive_report"]["data_accumulator"].append(data_dict)
+            except json.JSONDecodeError:
+                shared_context["progressive_report"]["data_accumulator"].append({"raw_data": data_entry})
+        
+        shared_context["progressive_report"]["last_updated"] = datetime.now().isoformat()
+        shared_context["last_updated"] = datetime.now().isoformat()
+        
+        # Save updated shared context
+        with open(context_file, 'w', encoding='utf-8') as f:
+            json.dump(shared_context, f, indent=2, ensure_ascii=False)
+        
+        output = f"""✅ **Progressive Report Updated**
+
+📝 **Update Details**
+- **Session**: {session_id}
+- **Section**: {section}
+- **Content Length**: {len(content)} characters
+- **Data Entries**: {len(shared_context['progressive_report']['data_accumulator'])}
+- **Updated At**: {datetime.now().isoformat()}
+
+Report section updated successfully.
+"""
+        
+        return output
+        
+    except Exception as e:
+        return f"❌ Error updating progressive report: {str(e)}"
+
+
+@function_tool
+async def generate_final_report_shared(
+    session_id: str
+) -> str:
+    """
+    Generate the final formatted report from accumulated progressive content.
+    
+    Args:
+        session_id: ID of the processing session
+    
+    Returns:
+        Complete formatted report ready for delivery
+    """
+    try:
+        # Load shared context file
+        context_file = f"./cache/shared_context_{session_id}.json"
+        if not os.path.exists(context_file):
+            return f"❌ Shared context not found for session: {session_id}"
+        
+        with open(context_file, 'r', encoding='utf-8') as f:
+            shared_context = json.load(f)
+        
+        if "progressive_report" not in shared_context:
+            return f"❌ Progressive report not initialized for session: {session_id}"
+        
+        report = shared_context["progressive_report"]
+        sections = report["sections"]
+        data_accumulator = report["data_accumulator"]
+        user_requirements = report["user_requirements"]
+        output_format = report["output_format"]
+        
+        # Build final report
+        final_report = f"""# {report['title']}
+
+## Executive Summary
+{sections['executive_summary'] if sections['executive_summary'] else 'Analysis completed successfully.'}
+
+"""
+        
+        # Add formatted data based on user requirements and output format
+        if data_accumulator:
+            if "table" in user_requirements.lower() or output_format == "table":
+                # Generate table format
+                final_report += "## Analysis Results\n\n"
+                if data_accumulator:
+                    # Extract columns from first entry
+                    first_entry = data_accumulator[0]
+                    if isinstance(first_entry, dict):
+                        columns = list(first_entry.keys())
+                        # Create table header
+                        final_report += "| " + " | ".join(columns) + " |\n"
+                        final_report += "|" + "|".join(["-" * len(col) for col in columns]) + "|\n"
+                        # Add data rows
+                        for entry in data_accumulator:
+                            if isinstance(entry, dict):
+                                row_data = [str(entry.get(col, "")) for col in columns]
+                                final_report += "| " + " | ".join(row_data) + " |\n"
+                        final_report += "\n"
+            
+            elif "list" in user_requirements.lower() or output_format == "list":
+                # Generate list format
+                final_report += "## Analysis Results\n\n"
+                for i, entry in enumerate(data_accumulator, 1):
+                    if isinstance(entry, dict):
+                        final_report += f"### Item {i}\n"
+                        for key, value in entry.items():
+                            final_report += f"- **{key}**: {value}\n"
+                        final_report += "\n"
+        
+        # Add other sections
+        if sections['main_content']:
+            final_report += f"## Detailed Analysis\n{sections['main_content']}\n\n"
+        
+        if sections['technical_details']:
+            final_report += f"## Technical Details\n{sections['technical_details']}\n\n"
+        
+        if sections['recommendations']:
+            final_report += f"## Recommendations\n{sections['recommendations']}\n\n"
+        
+        # Add footer
+        final_report += f"""---
+*Report generated on {datetime.now().isoformat()}*  
+*Session ID: {session_id}*
+"""
+        
+        return final_report
+        
+    except Exception as e:
+        return f"❌ Error generating final report: {str(e)}"
+
+
+@function_tool
 async def get_cached_file_content_shared(
     session_id: str,
     file_path: str

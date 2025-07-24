@@ -11,17 +11,17 @@ The system implements a coordinated multi-agent architecture for automated codeb
 **Agent Hierarchy:**
 - **SupervisorAgent**: Main orchestrator that receives user requests and coordinates all other agents
 - **GithubAgent**: Handles Git repository operations (cloning, updating, branch management)
-- **CodeExplorerAgent**: Specialized in file discovery, smart reading, pattern searching, and code reference analysis
-- **AnalysisAgent**: Focuses on semantic analysis, pattern recognition, and architectural analysis
-- **ReportAgent**: Generates professional reports from analysis findings
+- **CodeExplorerAgent**: Specialized in file discovery, smart reading, pattern searching, code reference analysis, and content caching
+- **AnalysisAgent**: Focuses on semantic analysis, pattern recognition, architectural analysis, AND progressive report generation
 - **SaveOrUploadReportAgent**: Handles report storage (local files, Confluence wiki pages)
 
 ### Agent Coordination Mechanism
 
 **Session-Based Context Sharing:**
 - Each analysis session gets a unique `session_id`
-- Shared context stored in `./cache/multi_agent_context_{session_id}.json`
-- Context includes findings, processed files, and agent contributions
+- Multi-agent context stored in `./cache/multi_agent_context_{session_id}.json`
+- Shared exploration context stored in `./cache/shared_context_{session_id}.json`
+- Context includes findings, processed files, cached exploration results, file content, and progressive reports
 
 **Handoff System:**
 - Defined in `src/ai_agents/configure_handoffs.py`
@@ -39,19 +39,21 @@ The system implements a coordinated multi-agent architecture for automated codeb
 - `search_confluence_pages_shared` - Search pages in Confluence spaces with title filtering
 - `get_confluence_page_info_shared` - Get detailed Confluence page information and metadata
 - `upload_to_confluence_shared` - Upload/update reports to Confluence with markdown conversion
-- `search_files_by_pattern_shared` - Pattern-based file searching (filename, path, content) with smart filtering
+- `scan_files_by_pattern_shared` - Pattern-based file searching (filename, path, content) with smart filtering
 - `find_code_references_shared` - Symbol reference analysis using AST parsing and regex patterns
 
 **Context Operations (`src/tools/context_operations.py`):**
 - `add_analysis_findings_shared` - Store analysis results in JSON context files
 - `get_file_context_shared` - Retrieve previous analysis for specific files
-- `get_session_summary_shared` - Get comprehensive session summary with statistics
+- `mark_file_processed_shared` - Mark files as processed by specific agents
 - `get_session_context_summary_shared` - Get session context summary for reporting
-- `merge_analysis_contexts_shared` - Merge analysis contexts with conflict resolution
 - `cache_exploration_results_shared` - Cache exploration data for multi-agent sharing
 - `get_shared_exploration_results_shared` - Retrieve cached exploration data
 - `cache_file_content_shared` - Cache file content for agent access
 - `get_cached_file_content_shared` - Retrieve cached file content
+- `initialize_progressive_report_shared` - Initialize progressive report structure for incremental building
+- `update_progressive_report_shared` - Update report sections incrementally during analysis
+- `generate_final_report_shared` - Generate final formatted report from progressive content
 
 **Batch Operations (`src/tools/batch_operations.py`):**
 - `create_processing_session_shared` - Create batch processing sessions with unique IDs
@@ -62,22 +64,26 @@ The system implements a coordinated multi-agent architecture for automated codeb
 **Git Operations (`src/tools/git_operations.py`):**
 - `clone_github_repo_shared` - Repository cloning with custom hosts, SSH support, branch selection, and automatic cleanup
 
-**Report Operations (`src/tools/report_operations.py`):**
-- `generate_report_shared` - Generate comprehensive reports from cached analysis findings
-- `list_available_report_types_shared` - List available report types with descriptions
-
-**Formatting Tools (`src/tools/formatting_tools.py`):**
-- `convert_json_to_markdown_table` - Convert JSON data to formatted markdown tables with column selection
-- `format_findings_as_list` - Format JSON findings as structured lists with grouping and field selection
-- `extract_unique_fields` - Extract all unique field names from JSON data for analysis
-- `generate_summary_stats` - Generate summary statistics from JSON findings data
 
 ### Key Design Patterns
 
 **Separation of Concerns:**
-- CodeExplorerAgent: File system navigation and code discovery
-- AnalysisAgent: Semantic understanding and pattern extraction
+- CodeExplorerAgent: File system navigation, code discovery, and content caching
+- AnalysisAgent: Semantic understanding, pattern extraction, and progressive report generation
+- SupervisorAgent: Workflow orchestration and storage decision making
 - Clean separation prevents tool overlap and maintains focused responsibilities
+
+**Progressive Report Generation:**
+- Reports are built incrementally during analysis to avoid token limits
+- AnalysisAgent initializes report structure and updates sections as files are processed
+- Data accumulator collects structured data (for tables/lists) during analysis
+- Final report is generated dynamically based on user requirements
+
+**Shared Context Architecture:**
+- CodeExplorerAgent caches all file content and exploration results
+- AnalysisAgent accesses cached content without direct file reading
+- Prevents token limit issues and enables efficient multi-agent coordination
+- Two-tier caching: exploration results and file content
 
 **Shared Tool Library:**
 - All tools suffixed with `_shared` for multi-agent coordination
@@ -87,10 +93,10 @@ The system implements a coordinated multi-agent architecture for automated codeb
 **Agent Workflow:**
 1. SupervisorAgent receives user request and creates session
 2. GithubAgent handles repository preparation (if needed)
-3. CodeExplorerAgent performs file discovery and content extraction
-4. AnalysisAgent conducts semantic analysis and pattern recognition
-5. ReportAgent formats findings into professional documentation
-6. SaveOrUploadReportAgent handles final delivery (files/Confluence)
+3. CodeExplorerAgent performs file discovery, content caching, and exploration result caching
+4. AnalysisAgent conducts semantic analysis, pattern recognition, AND progressive report generation
+5. SupervisorAgent decides whether to save/upload report based on user requirements
+6. SaveOrUploadReportAgent handles final delivery (files/Confluence) if requested
 
 ### Agent Responsibilities & Tools
 
@@ -105,9 +111,10 @@ The system implements a coordinated multi-agent architecture for automated codeb
 - **Strategic Planning**: Determine optimal analysis approach (GitHub repo vs local, analysis type, etc.)
 
 **Key Workflow Patterns:**
-1. **GitHub Repository Analysis**: Session → GithubAgent → AnalysisAgent → ReportAgent
-2. **Local Repository Analysis**: Session → AnalysisAgent → ReportAgent  
-3. **Specific Analysis Goals**: Parse user requirements for targeted analysis (API inventory, security, etc.)
+1. **GitHub Repository Analysis (with storage)**: Session → GithubAgent → AnalysisAgent → SaveOrUploadReportAgent
+2. **GitHub Repository Analysis (view only)**: Session → GithubAgent → AnalysisAgent → Return report to user
+3. **Local Repository Analysis**: Session → AnalysisAgent → [Optional SaveOrUploadReportAgent]
+4. **Coordinated Analysis with CodeExplorerAgent**: Session → CodeExplorerAgent → AnalysisAgent → [Optional SaveOrUploadReportAgent]
 
 **Tools:**
 - `create_processing_session_shared` - Initialize analysis sessions with session_id
@@ -117,16 +124,14 @@ The system implements a coordinated multi-agent architecture for automated codeb
 
 **Handoffs TO:**
 - GithubAgent (for repository operations)
-- CodeExplorerAgent (for file discovery) 
-- AnalysisAgent (for code analysis)
-- ReportAgent (for report generation)
-- SaveOrUploadReportAgent (for report delivery)
+- CodeExplorerAgent (for file discovery and caching) 
+- AnalysisAgent (for code analysis and report generation)
+- SaveOrUploadReportAgent (for report delivery - optional based on user requirements)
 
 **Handoffs FROM:** 
 - GithubAgent (completion status)
 - CodeExplorerAgent (exploration results)
-- AnalysisAgent (analysis completion)
-- ReportAgent (report generation completion)
+- AnalysisAgent (analysis completion with formatted report)
 - SaveOrUploadReportAgent (delivery confirmation)
 
 #### GithubAgent (Repository Operations)
@@ -153,7 +158,7 @@ The system implements a coordinated multi-agent architecture for automated codeb
 - `scan_repository_extensions_shared` - File type discovery
 - `list_all_code_files_shared` - Comprehensive file listing
 - `read_file_smart_shared` - Intelligent file reading
-- `search_files_by_pattern_shared` - Pattern-based searches
+- `scan_files_by_pattern_shared` - Pattern-based searches
 - `find_code_references_shared` - Symbol reference tracking
 - `cache_exploration_results_shared` - Cache exploration data for other agents
 - `get_shared_exploration_results_shared` - Retrieve cached exploration data
@@ -163,37 +168,28 @@ The system implements a coordinated multi-agent architecture for automated codeb
 **Handoffs FROM:** SupervisorAgent, AnalysisAgent
 **Handoffs TO:** SupervisorAgent, AnalysisAgent
 
-#### AnalysisAgent (Semantic Analysis)
+#### AnalysisAgent (Semantic Analysis & Progressive Report Generation)
 **Responsibilities:**
 - **NO direct file access** - Uses only cached content from CodeExplorerAgent
 - Semantic analysis, pattern recognition, API discovery
 - Architecture analysis and dependency mapping
 - Store analysis findings with session context
+- **Progressive report generation** - Build reports incrementally during analysis
+- Generate final formatted reports ready for delivery
 - **Can request additional exploration** from CodeExplorerAgent when needed
 
 **Tools:**
 - `add_analysis_findings_shared` - Store analysis results (MANDATORY for each file)
 - `get_file_context_shared` - Retrieve previous analysis
-- `get_session_summary_shared` - Get session summary with statistics
+- `mark_file_processed_shared` - Mark files as processed
 - `get_shared_exploration_results_shared` - Access cached exploration data from CodeExplorerAgent
 - `get_cached_file_content_shared` - Retrieve cached file content from CodeExplorerAgent
+- `initialize_progressive_report_shared` - Initialize progressive report structure
+- `update_progressive_report_shared` - Update report sections incrementally
+- `generate_final_report_shared` - Generate final formatted report
 
 **Handoffs FROM:** SupervisorAgent, CodeExplorerAgent
-**Handoffs TO:** SupervisorAgent, CodeExplorerAgent, ReportAgent
-
-#### ReportAgent (Documentation Generation)
-**Responsibilities:**
-- Generate professional markdown reports from analysis findings
-- Use natural LLM markdown formatting abilities
-- Format data as tables, lists, or custom structures based on user requirements
-- Create comprehensive documentation with executive summaries
-
-**Tools:**
-- `get_session_context_summary_shared` - Access session data and analysis findings
-- `get_file_context_shared` - Retrieve specific file analysis
-
-**Handoffs FROM:** SupervisorAgent, AnalysisAgent
-**Handoffs TO:** SupervisorAgent, SaveOrUploadReportAgent
+**Handoffs TO:** SupervisorAgent, CodeExplorerAgent
 
 #### SaveOrUploadReportAgent (Report Delivery)
 **Responsibilities:**
@@ -208,7 +204,7 @@ The system implements a coordinated multi-agent architecture for automated codeb
 - `search_confluence_pages_shared` - Search pages in Confluence spaces
 - `get_confluence_page_info_shared` - Get detailed Confluence page information
 
-**Handoffs FROM:** ReportAgent
+**Handoffs FROM:** SupervisorAgent (with report content from AnalysisAgent)
 **Handoffs TO:** SupervisorAgent
 
 ### Handoff Data Structure
@@ -223,12 +219,14 @@ The system implements a coordinated multi-agent architecture for automated codeb
 }
 ```
 
-**ReportHandoffData Format:**
+**ReportHandoffData Format:** (Used when SupervisorAgent hands off to SaveOrUploadReportAgent)
 ```json
 {
   "session_id": "unique_session_identifier",
-  "report_content": "generated_markdown_content",
-  "output_format": "preferred_delivery_format",
+  "report_content": "formatted_markdown_content_from_analysis_agent",
+  "storage_preference": "local_or_confluence",
+  "custom_filename": "optional_custom_filename",
+  "custom_directory": "optional_custom_directory",
   "user_requirements": "original_user_request"
 }
 ```

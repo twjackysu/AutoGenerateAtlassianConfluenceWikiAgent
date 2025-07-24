@@ -22,29 +22,32 @@ from openai import AsyncOpenAI
 from agents import Runner, set_default_openai_api, set_default_openai_client, set_tracing_disabled
 from src.ai_agents.supervisor_agent import supervisor_agent
 
-# Check if OpenAI API key is available
-# if not os.getenv('OPENAI_API_KEY'):
-#     print("❌ Error: OPENAI_API_KEY environment variable is not set!")
-#     print("Please create a .env file in the project root with:")
-#     print("OPENAI_API_KEY=your_openai_api_key_here")
-#     exit(1)
+# Auto-switch between OpenAI and Custom AI endpoint
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+CUSTOM_AI_ENDPOINT = os.getenv("CUSTOM_AI_ENDPOINT")
+CUSTOM_AI_ENDPOINT_API_KEY = os.getenv("CUSTOM_AI_ENDPOINT_API_KEY")
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL")
 
-BASE_URL = os.getenv("CUSTOM_AI_ENDPOINT") or ""
-API_KEY = os.getenv("CUSTOM_AI_ENDPOINT_API_KEY") or ""
-MODEL_NAME = os.getenv("DEFAULT_MODEL") or ""
-
-if not BASE_URL or not API_KEY or not MODEL_NAME:
-    raise ValueError(
-        "Please set CUSTOM_AI_ENDPOINT, CUSTOM_AI_ENDPOINT_API_KEY, DEFAULT_MODEL via env var or code."
+if OPENAI_API_KEY:
+    # Priority 1: Use OpenAI API (with tracing support)
+    print("🔵 Using OpenAI API (tracing enabled)")
+    # OpenAI client will be auto-configured by agents library
+else:
+    # Priority 2: Use Custom AI endpoint
+    print("🟡 Using Custom AI endpoint (tracing disabled)")
+    
+    if not CUSTOM_AI_ENDPOINT or not CUSTOM_AI_ENDPOINT_API_KEY or not DEFAULT_MODEL:
+        raise ValueError(
+            "No OPENAI_API_KEY found. Please set CUSTOM_AI_ENDPOINT, CUSTOM_AI_ENDPOINT_API_KEY, DEFAULT_MODEL via env var."
+        )
+    
+    client = AsyncOpenAI(
+        base_url=CUSTOM_AI_ENDPOINT,
+        api_key=CUSTOM_AI_ENDPOINT_API_KEY,
     )
-
-client = AsyncOpenAI(
-    base_url=BASE_URL,
-    api_key=API_KEY,
-)
-set_default_openai_client(client=client, use_for_tracing=False)
-set_default_openai_api("chat_completions")
-set_tracing_disabled(disabled=True)
+    set_default_openai_client(client=client, use_for_tracing=False)
+    set_default_openai_api("chat_completions")
+    set_tracing_disabled(disabled=True)
 
 async def test_multi_agent_coordination():
     """Test multi-agent system coordination"""

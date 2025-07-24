@@ -1,6 +1,7 @@
 """
 Git operations tools - shared version for multi-agent system.
 Based on the original github_tools.py but adapted for multi-agent usage.
+Supports custom Git hosts and SSH protocol.
 """
 
 import os
@@ -13,24 +14,44 @@ from agents import function_tool
 @function_tool
 async def clone_github_repo_shared(repo_url: str, local_path: str = None, branch: str = None) -> str:
     """
-    Clone a GitHub repository to local filesystem.
+    Clone a Git repository to local filesystem with support for custom hosts and SSH.
     If repository exists, remove it and clone fresh.
     If repository doesn't exist, clone fresh.
     
     Args:
-        repo_url: GitHub repository URL (e.g., 'https://github.com/user/repo.git' or 'user/repo')
+        repo_url: Git repository URL formats supported:
+                 - Full URL: 'https://git.company.com/user/repo.git'
+                 - SSH URL: 'git@git.company.com:user/repo.git'  
+                 - Short format: 'user/repo' (uses default host and protocol from ENV)
         local_path: Local directory path to clone to (optional, defaults to repo name)
         branch: Branch to clone (optional, uses repository's default branch if not specified)
+    
+    Environment Variables:
+        GIT_HOST: Default Git host (default: github.com)
+        GIT_PROTOCOL: Default protocol, 'https' or 'ssh' (default: https)
     
     Returns:
         Status message about clone operation
     """
     try:
-        if not repo_url.startswith('http'):
-            if '/' in repo_url:
-                repo_url = f"https://github.com/{repo_url}.git"
+        # Get environment settings
+        default_host = os.getenv('GIT_HOST', 'github.com')
+        default_protocol = os.getenv('GIT_PROTOCOL', 'https').lower()
+        
+        # Handle different URL formats
+        if repo_url.startswith(('http://', 'https://', 'git@')):
+            # Full URL provided, use as-is
+            final_repo_url = repo_url
+        elif '/' in repo_url:
+            # Short format: user/repo
+            if default_protocol == 'ssh':
+                final_repo_url = f"git@{default_host}:{repo_url}.git"
             else:
-                return f"Invalid repo format: {repo_url}. Use 'user/repo' or full URL."
+                final_repo_url = f"https://{default_host}/{repo_url}.git"
+        else:
+            return f"Invalid repo format: {repo_url}. Use 'user/repo' or full URL."
+        
+        repo_url = final_repo_url
         
         if local_path is None:
             repo_name = repo_url.split('/')[-1].replace('.git', '')

@@ -24,7 +24,9 @@ github_agent = Agent(
     - **Error Recovery**: Gracefully handle Git operation failures and retry with alternatives
 
     ## 🔧 Technical Capabilities
-    - **Smart Cloning**: Auto-detect repository format (full URL vs user/repo format)
+    - **Multi-Host Support**: Support custom Git hosts via GIT_HOST environment variable
+    - **Protocol Flexibility**: Support both HTTPS and SSH protocols via GIT_PROTOCOL setting
+    - **Smart URL Parsing**: Handle full URLs, SSH URLs, and short 'user/repo' format
     - **Update Strategy**: Remove existing repo and clone fresh for reliable updates
     - **Branch Detection**: Automatically detect and use default branch (main/master)
     - **Clean Operations**: Ensure clean working directory after operations
@@ -72,16 +74,23 @@ github_agent = Agent(
 
     ## 🚀 Operation Examples
 
-    ### Successful Clone:
+    ### Successful Clone (HTTPS):
     ```
-    Successfully cloned https://github.com/user/repo.git to ./repos/repo
+    Successfully cloned https://git.company.com/user/repo.git to ./repos/repo
+    Repository is ready for analysis at: ./repos/repo
+    Default branch: main
+    ```
+
+    ### Successful Clone (SSH):
+    ```
+    Successfully cloned git@git.company.com:user/repo.git to ./repos/repo
     Repository is ready for analysis at: ./repos/repo
     Default branch: main
     ```
 
     ### Successful Update:
     ```
-    Successfully removed existing repo and cloned https://github.com/user/repo.git to ./repos/repo
+    Successfully removed existing repo and cloned https://git.company.com/user/repo.git to ./repos/repo
     Repository path: ./repos/repo
     Fresh clone completed
     ```

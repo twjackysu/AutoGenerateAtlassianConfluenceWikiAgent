@@ -149,6 +149,7 @@ async def scan_repository_extensions_shared(
     Returns:
         Summary of all extensions found in the repository
     """
+    print(f"🔧 [TOOL] scan_repository_extensions_shared(repo_path='{repo_path}', include_config={include_config})")
     try:
         # Check if this looks like a GitHub repo name and adjust path
         if not os.path.exists(repo_path):
@@ -261,6 +262,7 @@ async def list_all_code_files_shared(
     Returns:
         JSON string with file information and summary statistics
     """
+    print(f"🔧 [TOOL] list_all_code_files_shared(repo_path='{repo_path}', extensions={extensions}, include_config={include_config})")
     try:
         # Check if this looks like a GitHub repo name and adjust path
         if not os.path.exists(repo_path):
@@ -509,6 +511,7 @@ async def read_file_smart_shared(
     Returns:
         Formatted string with file content and metadata
     """
+    print(f"🔧 [TOOL] read_file_smart_shared(file_path='{file_path}', chunk_index={chunk_index}, repo_path='{repo_path}')")
     try:
         # Handle relative paths by combining with repo_path
         if repo_path and not os.path.isabs(file_path):
@@ -706,6 +709,7 @@ async def save_report_file_shared(
     Returns:
         Status message with file path
     """
+    print(f"🔧 [TOOL] save_report_file_shared(filename='{filename}', directory='{directory}', content_length={len(content)})")
     try:
         from datetime import datetime
         
@@ -834,6 +838,7 @@ async def search_confluence_spaces_shared(
     Returns:
         Formatted list of spaces with keys, names, and URLs
     """
+    print(f"🔧 [TOOL] search_confluence_spaces_shared(query='{query}', limit={limit})")
     try:
         confluence = _get_confluence_client()
         if not confluence:
@@ -909,6 +914,7 @@ async def search_confluence_pages_shared(
     Returns:
         Formatted list of pages with IDs, titles, and URLs
     """
+    print(f"🔧 [TOOL] search_confluence_pages_shared(space_key='{space_key}', query='{query}', limit={limit})")
     try:
         confluence = _get_confluence_client()
         if not confluence:
@@ -980,6 +986,7 @@ async def get_confluence_page_info_shared(
     Returns:
         Detailed page information including title, space, content preview, and metadata
     """
+    print(f"🔧 [TOOL] get_confluence_page_info_shared(page_id='{page_id}')")
     try:
         confluence = _get_confluence_client()
         if not confluence:
@@ -1059,6 +1066,7 @@ async def upload_to_confluence_shared(
     Returns:
         Status message with page URL and details
     """
+    print(f"🔧 [TOOL] upload_to_confluence_shared(title='{title}', space_key='{space_key}', page_id='{page_id}', content_length={len(content)})")
     try:
         confluence = _get_confluence_client()
         if not confluence:
@@ -1153,6 +1161,7 @@ async def scan_files_by_pattern_shared(
     Returns:
         Formatted string with found files and metadata
     """
+    print(f"🔧 [TOOL] scan_files_by_pattern_shared(repo_path='{repo_path}', filename_patterns={filename_patterns}, path_patterns={path_patterns}, content_keywords={content_keywords})")
     try:
         import fnmatch
         import glob
@@ -1366,6 +1375,7 @@ async def find_code_references_shared(
     Returns:
         Formatted string with all found references and their contexts
     """
+    print(f"🔧 [TOOL] find_code_references_shared(repo_path='{repo_path}', symbol='{symbol}', symbol_type='{symbol_type}', file_extensions={file_extensions})")
     try:
         import ast
         

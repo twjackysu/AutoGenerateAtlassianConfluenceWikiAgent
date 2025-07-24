@@ -33,6 +33,7 @@ async def clone_github_repo_shared(repo_url: str, local_path: str = None, branch
     Returns:
         Status message about clone operation
     """
+    print(f"🔧 [TOOL] clone_github_repo_shared(repo_url='{repo_url}', local_path='{local_path}', branch='{branch}')")
     try:
         # Get environment settings
         default_host = os.getenv('GIT_HOST', 'github.com')

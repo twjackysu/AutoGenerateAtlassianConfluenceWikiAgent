@@ -2,12 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Commands
+
+**Running the System:**
+```bash
+# Test the multi-agent system (main entry point)
+uv run test_multi_agent_system.py
+```
+
 **Environment Setup:**
-- Requires `.env` file with AI endpoint configuration:
-  - `CUSTOM_AI_ENDPOINT` - Base URL for AI API
-  - `CUSTOM_AI_ENDPOINT_API_KEY` - API key 
-  - `DEFAULT_MODEL` - Model name to use
-  - Optional: `OPENAI_API_KEY` for OpenAI integration
+- Copy `.env.example` to `.env` and configure your settings
+- Required variables: AI endpoint, Confluence credentials (for wiki uploads)
+- Optional variables: Git configuration, OpenAI API key
 
 **Dependencies:**
 ```bash

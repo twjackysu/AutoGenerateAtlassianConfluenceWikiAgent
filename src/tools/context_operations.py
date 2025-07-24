@@ -300,3 +300,303 @@ async def get_session_context_summary_shared(session_id: str) -> str:
         
     except Exception as e:
         return f"❌ Error getting session context summary: {str(e)}"
+
+
+@function_tool
+async def cache_exploration_results_shared(
+    session_id: str,
+    exploration_type: str,
+    exploration_data: str,
+    metadata: Optional[str] = None
+) -> str:
+    """
+    Cache exploration results from CodeExplorerAgent for shared access.
+    
+    Args:
+        session_id: ID of the processing session
+        exploration_type: Type of exploration (file_inventory, pattern_search, reference_analysis)
+        exploration_data: JSON string containing exploration results
+        metadata: Optional metadata about the exploration
+    
+    Returns:
+        Confirmation of caching operation
+    """
+    try:
+        # Ensure cache directory exists
+        cache_dir = "./cache"
+        os.makedirs(cache_dir, exist_ok=True)
+        
+        # Load or create shared context file
+        context_file = f"./cache/shared_context_{session_id}.json"
+        if os.path.exists(context_file):
+            with open(context_file, 'r', encoding='utf-8') as f:
+                shared_context = json.load(f)
+        else:
+            shared_context = {
+                "session_id": session_id,
+                "created_at": datetime.now().isoformat(),
+                "exploration_results": {},
+                "processing_status": {
+                    "processed_files": [],
+                    "file_contexts": {}
+                },
+                "content_cache": {},
+                "analysis_findings": []
+            }
+        
+        # Parse exploration data
+        try:
+            exploration_dict = json.loads(exploration_data) if isinstance(exploration_data, str) else exploration_data
+        except json.JSONDecodeError:
+            exploration_dict = {"raw_data": exploration_data}
+        
+        # Cache the exploration results
+        if exploration_type not in shared_context["exploration_results"]:
+            shared_context["exploration_results"][exploration_type] = {}
+        
+        shared_context["exploration_results"][exploration_type].update(exploration_dict)
+        shared_context["last_updated"] = datetime.now().isoformat()
+        
+        # Add metadata if provided
+        if metadata:
+            try:
+                metadata_dict = json.loads(metadata) if isinstance(metadata, str) else metadata
+                shared_context["exploration_results"][exploration_type]["_metadata"] = metadata_dict
+            except json.JSONDecodeError:
+                shared_context["exploration_results"][exploration_type]["_metadata"] = {"note": metadata}
+        
+        # Save updated shared context
+        with open(context_file, 'w', encoding='utf-8') as f:
+            json.dump(shared_context, f, indent=2, ensure_ascii=False)
+        
+        output = f"""✅ **Exploration Results Cached Successfully**
+
+📊 **Cache Details**
+- **Session**: {session_id}
+- **Exploration Type**: {exploration_type}
+- **Data Size**: {len(exploration_data):,} characters
+- **Cached At**: {datetime.now().isoformat()}
+
+🗃️ **Shared Context Summary**
+- **Total Exploration Types**: {len(shared_context['exploration_results'])}
+- **Processed Files**: {len(shared_context['processing_status']['processed_files'])}
+- **Cached Content**: {len(shared_context['content_cache'])} files
+
+Exploration results are now available for other agents to access.
+"""
+        
+        return output
+        
+    except Exception as e:
+        return f"❌ Error caching exploration results: {str(e)}"
+
+
+@function_tool
+async def get_shared_exploration_results_shared(
+    session_id: str,
+    exploration_type: Optional[str] = None
+) -> str:
+    """
+    Retrieve cached exploration results from shared context.
+    
+    Args:
+        session_id: ID of the processing session
+        exploration_type: Specific type to retrieve, or None for all results
+    
+    Returns:
+        Exploration results or summary
+    """
+    try:
+        # Load shared context file
+        context_file = f"./cache/shared_context_{session_id}.json"
+        if not os.path.exists(context_file):
+            return f"❌ Shared context not found for session: {session_id}"
+        
+        with open(context_file, 'r', encoding='utf-8') as f:
+            shared_context = json.load(f)
+        
+        exploration_results = shared_context.get("exploration_results", {})
+        
+        if exploration_type:
+            # Return specific exploration type
+            if exploration_type in exploration_results:
+                specific_results = exploration_results[exploration_type]
+                return f"""# 🔍 {exploration_type.replace('_', ' ').title()} Results
+
+## 📊 Results Summary
+- **Session**: {session_id}
+- **Type**: {exploration_type}
+- **Last Updated**: {shared_context.get('last_updated', 'Unknown')}
+
+## 📋 Results Data
+```json
+{json.dumps(specific_results, indent=2, ensure_ascii=False)}
+```
+
+Use this data for analysis and processing.
+"""
+            else:
+                return f"❌ No results found for exploration type: {exploration_type}"
+        
+        else:
+            # Return summary of all exploration results
+            output = f"""# 🗃️ All Exploration Results Summary
+
+## 📊 Session Overview
+- **Session ID**: {session_id}
+- **Last Updated**: {shared_context.get('last_updated', 'Unknown')}
+- **Available Exploration Types**: {len(exploration_results)}
+
+## 🔍 Available Exploration Results
+"""
+            
+            for exp_type, exp_data in exploration_results.items():
+                data_size = len(json.dumps(exp_data)) if isinstance(exp_data, dict) else len(str(exp_data))
+                metadata = exp_data.get('_metadata', {}) if isinstance(exp_data, dict) else {}
+                
+                output += f"""
+### {exp_type.replace('_', ' ').title()}
+- **Data Size**: {data_size:,} characters
+- **Keys**: {list(exp_data.keys()) if isinstance(exp_data, dict) else 'Raw data'}
+- **Metadata**: {metadata}
+"""
+            
+            output += f"""
+
+## 💡 Usage
+To get specific exploration results, use:
+`get_shared_exploration_results_shared(session_id="{session_id}", exploration_type="specific_type")`
+"""
+            
+            return output
+        
+    except Exception as e:
+        return f"❌ Error getting shared exploration results: {str(e)}"
+
+
+@function_tool
+async def cache_file_content_shared(
+    session_id: str,
+    file_path: str,
+    content_data: str,
+    metadata: Optional[str] = None
+) -> str:
+    """
+    Cache file content in shared context for analysis access.
+    
+    Args:
+        session_id: ID of the processing session
+        file_path: Path to the file being cached
+        content_data: File content or chunked content data
+        metadata: Optional metadata about the file
+    
+    Returns:
+        Confirmation of caching operation
+    """
+    try:
+        # Ensure cache directory exists
+        cache_dir = "./cache"
+        os.makedirs(cache_dir, exist_ok=True)
+        
+        # Load shared context file
+        context_file = f"./cache/shared_context_{session_id}.json"
+        if os.path.exists(context_file):
+            with open(context_file, 'r', encoding='utf-8') as f:
+                shared_context = json.load(f)
+        else:
+            return f"❌ Shared context not found for session: {session_id}. Create exploration results first."
+        
+        # Parse content data
+        try:
+            content_dict = json.loads(content_data) if isinstance(content_data, str) else content_data
+        except json.JSONDecodeError:
+            content_dict = {"raw_content": content_data}
+        
+        # Cache the file content
+        shared_context["content_cache"][file_path] = {
+            "content_data": content_dict,
+            "cached_at": datetime.now().isoformat(),
+            "metadata": json.loads(metadata) if metadata else {}
+        }
+        
+        shared_context["last_updated"] = datetime.now().isoformat()
+        
+        # Save updated shared context
+        with open(context_file, 'w', encoding='utf-8') as f:
+            json.dump(shared_context, f, indent=2, ensure_ascii=False)
+        
+        output = f"""✅ **File Content Cached Successfully**
+
+📁 **File Details**
+- **Session**: {session_id}
+- **File Path**: `{file_path}`
+- **Content Size**: {len(content_data):,} characters
+- **Cached At**: {datetime.now().isoformat()}
+
+🗃️ **Cache Status**
+- **Total Cached Files**: {len(shared_context['content_cache'])}
+- **Available for Analysis**: Ready
+
+File content is now available for AnalysisAgent to access.
+"""
+        
+        return output
+        
+    except Exception as e:
+        return f"❌ Error caching file content: {str(e)}"
+
+
+@function_tool
+async def get_cached_file_content_shared(
+    session_id: str,
+    file_path: str
+) -> str:
+    """
+    Retrieve cached file content from shared context.
+    
+    Args:
+        session_id: ID of the processing session
+        file_path: Path to the file to retrieve
+    
+    Returns:
+        Cached file content and metadata
+    """
+    try:
+        # Load shared context file
+        context_file = f"./cache/shared_context_{session_id}.json"
+        if not os.path.exists(context_file):
+            return f"❌ Shared context not found for session: {session_id}"
+        
+        with open(context_file, 'r', encoding='utf-8') as f:
+            shared_context = json.load(f)
+        
+        content_cache = shared_context.get("content_cache", {})
+        
+        if file_path not in content_cache:
+            return f"❌ File content not cached: {file_path}"
+        
+        cached_file = content_cache[file_path]
+        content_data = cached_file["content_data"]
+        cached_at = cached_file.get("cached_at", "Unknown")
+        metadata = cached_file.get("metadata", {})
+        
+        output = f"""# 📁 Cached File Content: {os.path.basename(file_path)}
+
+## 📊 File Information
+- **Session**: {session_id}
+- **File Path**: `{file_path}`
+- **Cached At**: {cached_at}
+- **Metadata**: {metadata}
+
+## 📝 Content Data
+```json
+{json.dumps(content_data, indent=2, ensure_ascii=False)}
+```
+
+This cached content is ready for analysis.
+"""
+        
+        return output
+        
+    except Exception as e:
+        return f"❌ Error getting cached file content: {str(e)}"

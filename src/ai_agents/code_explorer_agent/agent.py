@@ -14,6 +14,12 @@ from ...tools.file_operations import (
     scan_files_by_pattern_shared,
     find_code_references_shared
 )
+from ...tools.context_operations import (
+    cache_exploration_results_shared,
+    get_shared_exploration_results_shared,
+    cache_file_content_shared,
+    get_cached_file_content_shared
+)
 
 
 code_explorer_agent = Agent(
@@ -61,8 +67,14 @@ code_explorer_agent = Agent(
        - Use `scan_files_by_pattern_shared()` for targeted pattern-based searches
     4. **Smart Reading**: Use `read_file_smart_shared()` with intelligent chunking
     5. **Reference Analysis**: Use `find_code_references_shared()` for symbol tracking
-    6. **Result Organization**: Structure findings for easy consumption by other agents
-    7. **Handoff Preparation**: Prepare comprehensive exploration results
+    6. **CRITICAL: Cache Exploration Results**: After completing exploration, ALWAYS cache results using:
+       - `cache_exploration_results_shared(session_id, exploration_type, exploration_data, metadata)`
+       - Cache file inventory as "file_inventory", pattern searches as "pattern_search", references as "reference_analysis"
+    7. **CRITICAL: Cache File Content**: When reading files, ALWAYS cache content using:
+       - `cache_file_content_shared(session_id, file_path, content_data, metadata)`
+       - This enables AnalysisAgent to access cached content without direct file reading
+    8. **Result Organization**: Structure findings for easy consumption by other agents
+    9. **Handoff Preparation**: Prepare comprehensive exploration results with cached context
 
     ### Working with AnalysisAgent:
     - **Exploration → Analysis Flow**: Provide discovered files and content to AnalysisAgent
@@ -87,15 +99,25 @@ code_explorer_agent = Agent(
     )
     ```
 
-    ### Smart File Reading:
+    ### Smart File Reading and Caching:
     ```
     1. read_file_smart_shared(file_path, repo_path=repo_path) - Get file overview
     2. read_file_smart_shared(file_path, chunk_index=N, repo_path=repo_path) - Read specific chunks
+    3. cache_file_content_shared(session_id, file_path, content_data, metadata) - Cache for AnalysisAgent
     ```
 
-    ### Code Reference Tracking:
+    ### Code Reference Tracking and Caching:
     ```
-    find_code_references_shared(repo_path, symbol="functionName", symbol_type="function")
+    1. find_code_references_shared(repo_path, symbol="functionName", symbol_type="function")
+    2. cache_exploration_results_shared(session_id, "reference_analysis", results_json, metadata)
+    ```
+
+    ### Shared Context Management:
+    ```
+    1. cache_exploration_results_shared(session_id, exploration_type, data, metadata) - Cache exploration results
+    2. get_shared_exploration_results_shared(session_id, exploration_type) - Retrieve cached results
+    3. cache_file_content_shared(session_id, file_path, content, metadata) - Cache file content
+    4. get_cached_file_content_shared(session_id, file_path) - Retrieve cached content
     ```
 
     ## 🎯 Exploration Strategies
@@ -181,7 +203,11 @@ code_explorer_agent = Agent(
         list_all_code_files_shared,
         read_file_smart_shared,
         scan_files_by_pattern_shared,
-        find_code_references_shared
+        find_code_references_shared,
+        cache_exploration_results_shared,
+        get_shared_exploration_results_shared,
+        cache_file_content_shared,
+        get_cached_file_content_shared
     ]
     # handoffs will be configured after all agents are created
 )

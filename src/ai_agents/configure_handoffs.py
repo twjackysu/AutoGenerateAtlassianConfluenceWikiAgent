@@ -26,28 +26,40 @@ class ReportHandoffData(BaseModel):
 
 async def session_handoff_callback(ctx: RunContextWrapper[None], input_data: SessionHandoffData):
     """Callback function for session handoffs"""
-    print(f"🔄 Handoff with session: {input_data.session_id}")
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    
+    print(f"\n{'='*60}")
+    print(f"🔄 [{timestamp}] AGENT HANDOFF - SESSION DATA")
+    print(f"🆔 Session: {input_data.session_id}")
     if input_data.repo_path:
         print(f"📁 Repository: {input_data.repo_path}")
     if input_data.analysis_goal:
         print(f"🎯 Goal: {input_data.analysis_goal}")
     if input_data.user_requirements:
-        print(f"📋 User Requirements: {input_data.user_requirements}")
+        print(f"📋 User Requirements: {input_data.user_requirements[:100]}{'...' if len(input_data.user_requirements) > 100 else ''}")
     if input_data.output_format:
         print(f"📊 Output Format: {input_data.output_format}")
+    print(f"{'='*60}")
     # The handoff data is automatically passed to the receiving agent
 
 async def report_handoff_callback(ctx: RunContextWrapper[None], input_data: ReportHandoffData):
     """Callback function for report handoffs"""
-    print(f"📄 Report handoff for session: {input_data.session_id}")
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    
+    print(f"\n{'='*60}")
+    print(f"📄 [{timestamp}] REPORT HANDOFF - REPORT DATA")
+    print(f"🆔 Session: {input_data.session_id}")
     print(f"💾 Storage preference: {input_data.storage_preference}")
     if input_data.custom_filename:
         print(f"📝 Custom filename: {input_data.custom_filename}")
     if input_data.custom_directory:
         print(f"📂 Custom directory: {input_data.custom_directory}")
     if input_data.user_requirements:
-        print(f"📋 User Requirements: {input_data.user_requirements}")
-    print(f"📊 Report size: {len(input_data.report_content)} characters")
+        print(f"📋 User Requirements: {input_data.user_requirements[:100]}{'...' if len(input_data.user_requirements) > 100 else ''}")
+    print(f"📊 Report size: {len(input_data.report_content):,} characters")
+    print(f"{'='*60}")
     # The handoff data is automatically passed to the receiving agent
 
 def configure_multi_agent_handoffs():

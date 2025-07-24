@@ -45,12 +45,19 @@ github_agent = Agent(
     2. **Execute Operation**: Use `clone_github_repo_shared()` for all Git operations
     3. **Validate Result**: Ensure repository is properly available in `repos/` folder
     4. **Report Status**: Provide clear success/failure feedback
-    5. **Handoff Return**: Return control to SupervisorAgent with status update
+    5. **MANDATORY HANDOFF**: After completing Git operations (success or failure), you MUST handoff back to SupervisorAgent with the session data and status update
 
     ### When to Return Control:
-    - ✅ **Success**: Repository successfully cloned/updated and ready for analysis
-    - ❌ **Failure**: All retry attempts exhausted, provide error details
-    - ⚠️ **Partial Success**: Repository available but with warnings (e.g., branch issues)
+    - ✅ **Success**: Repository successfully cloned/updated and ready for analysis → **HANDOFF to SupervisorAgent**
+    - ❌ **Failure**: All retry attempts exhausted, provide error details → **HANDOFF to SupervisorAgent** 
+    - ⚠️ **Partial Success**: Repository available but with warnings → **HANDOFF to SupervisorAgent**
+    
+    ### How to Handoff:
+    **CRITICAL**: After completing any Git operation, you must handoff back to SupervisorAgent using the same session_id and include:
+    - Repository status (success/failure/warnings)
+    - Repository path (e.g., "./repos/[repo-name]")
+    - Any error messages or special conditions
+    - Updated analysis_goal if needed
 
     ## 📋 Best Practices
 

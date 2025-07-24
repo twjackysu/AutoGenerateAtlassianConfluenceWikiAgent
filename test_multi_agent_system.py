@@ -62,7 +62,89 @@ async def test_multi_agent_coordination():
         max_turns=200
     )
     print("SupervisorAgent Result:")
-    print(supervisor_result.final_output[:1000] + "..." if len(supervisor_result.final_output) > 1000 else supervisor_result.final_output)
+    
+    # Debug: Check what attributes the result object has
+    print(f"📊 RunResult attributes: {[attr for attr in dir(supervisor_result) if not attr.startswith('_')]}")
+    
+    # Safe access to result attributes
+    final_output = getattr(supervisor_result, 'final_output', 'No final output available')
+    print(f"Final output: {final_output[:1000] + '...' if len(final_output) > 1000 else final_output}")
+    
+    # Try to access conversation history if available
+    if hasattr(supervisor_result, 'messages'):
+        print(f"Total turns: {len(supervisor_result.messages)}")
+        messages = supervisor_result.messages
+    elif hasattr(supervisor_result, 'conversation'):
+        print(f"Total turns: {len(supervisor_result.conversation)}")
+        messages = supervisor_result.conversation
+    elif hasattr(supervisor_result, 'history'):
+        print(f"Total turns: {len(supervisor_result.history)}")
+        messages = supervisor_result.history
+    else:
+        print("⚠️ No conversation history available in RunResult")
+        messages = []
+    
+    # Show detailed conversation flow if messages are available
+    if messages:
+        print("\n🔄 DETAILED MULTI-AGENT CONVERSATION FLOW:")
+        print(f"{'='*80}")
+        
+        for i, message in enumerate(messages, 1):
+            role = getattr(message, 'role', 'unknown').upper()
+            content = getattr(message, 'content', str(message))
+            timestamp = f"Turn {i:02d}"
+            
+            # Detect agent activities based on message content
+            content_lower = content.lower()
+            
+            if "github" in content_lower or "clone" in content_lower or "repository" in content_lower:
+                agent_activity = "🐙 [GithubAgent Activity]"
+            elif "scan" in content_lower or "files" in content_lower or "read" in content_lower:
+                agent_activity = "🔍 [CodeExplorerAgent Activity]"
+            elif "analysis" in content_lower or "pattern" in content_lower or "api" in content_lower:
+                agent_activity = "📊 [AnalysisAgent Activity]"
+            elif "report" in content_lower or "markdown" in content_lower or "generate" in content_lower:
+                agent_activity = "📄 [ReportAgent Activity]"
+            elif "save" in content_lower or "upload" in content_lower or "confluence" in content_lower:
+                agent_activity = "💾 [SaveOrUploadReportAgent Activity]"
+            else:
+                agent_activity = "🤖 [SupervisorAgent Activity]"
+            
+            print(f"\n[{timestamp}] {agent_activity}")
+            print(f"Role: {role}")
+            
+            # Show content with smart truncation
+            if len(content) > 300:
+                lines = content.split('\n')
+                if len(lines) > 5:
+                    content_preview = '\n'.join(lines[:3]) + f"\n... ({len(lines)-3} more lines) ..." + '\n'.join(lines[-2:])
+                else:
+                    content_preview = content[:300] + "..."
+            else:
+                content_preview = content
+                
+            print(f"Content: {content_preview}")
+            print(f"{'-'*60}")
+    
+    # Check if workflow completed successfully
+    print(f"\n{'='*80}")
+    print("🏁 WORKFLOW COMPLETION ANALYSIS:")
+    
+    final_content = final_output.lower()
+    completed_indicators = {
+        "Repository cloned": "github" in final_content or "clone" in final_content,
+        "Files analyzed": "analysis" in final_content or "files" in final_content,
+        "Report generated": "report" in final_content or "markdown" in final_content,
+        "Saved locally": "save" in final_content or "test_reports" in final_content
+    }
+    
+    for indicator, status in completed_indicators.items():
+        status_icon = "✅" if status else "❌"
+        print(f"{status_icon} {indicator}: {'Completed' if status else 'Not detected'}")
+    
+    overall_success = sum(completed_indicators.values()) >= 3
+    print(f"\n{'✅ WORKFLOW COMPLETED SUCCESSFULLY!' if overall_success else '⚠️ WORKFLOW MAY BE INCOMPLETE'}")
+    print(f"Completion score: {sum(completed_indicators.values())}/4 steps")
     print("\n" + "="*60)
 
 

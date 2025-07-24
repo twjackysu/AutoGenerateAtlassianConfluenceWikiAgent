@@ -6,11 +6,12 @@ This agent performs the core analysis work in the multi-agent system.
 
 import os
 from agents import Agent
-# File operations tools moved to CodeExplorerAgent for better separation of concerns
 from ...tools.context_operations import (
     add_analysis_findings_shared,
     get_file_context_shared,
-    mark_file_processed_shared
+    mark_file_processed_shared,
+    get_shared_exploration_results_shared,
+    get_cached_file_content_shared
 )
 
 
@@ -45,21 +46,24 @@ analysis_agent = Agent(
 
     ### Your Analysis Workflow:
     1. **Session ID Receipt**: Extract session_id from handoff data and use it throughout analysis
-    2. **CodeExplorerAgent Coordination**: 
-       - **File Discovery**: Request CodeExplorerAgent to scan repository and discover relevant files
-       - **Content Retrieval**: Request specific file content through CodeExplorerAgent's smart reading
-       - **Reference Analysis**: When needed, ask CodeExplorerAgent to find symbol references
-    3. **Content Analysis**: Focus on semantic analysis of provided file content
+    2. **Shared Context Access**: 
+       - **Exploration Results**: Use `get_shared_exploration_results_shared(session_id)` to access cached exploration data
+       - **File Content Access**: Use `get_cached_file_content_shared(session_id, file_path)` to retrieve file content cached by CodeExplorerAgent
+       - **NEVER read files directly** - always access content through shared context for optimal performance
+    3. **CodeExplorerAgent Coordination** (when needed): 
+       - **Additional Discovery**: Request CodeExplorerAgent for specific pattern searches or reference analysis
+       - **Content Requests**: Ask CodeExplorerAgent to cache additional file content if not already available
+    4. **Content Analysis**: Focus on semantic analysis of cached content
        - **Pattern Recognition**: Identify APIs, frameworks, architectural patterns, design patterns
        - **Dependency Mapping**: Understand relationships between components
        - **Security Assessment**: Identify authentication, authorization, and security patterns
        - **Performance Analysis**: Assess complexity and performance considerations
-    4. **Context Integration**: Use `get_file_context_shared()` to build on previous analysis
-    5. **CRITICAL REQUIREMENT**: After analyzing each file, IMMEDIATELY call `add_analysis_findings_shared(session_id, findings_json, source_file)`
+    5. **Context Integration**: Use `get_file_context_shared()` to build on previous analysis
+    6. **CRITICAL REQUIREMENT**: After analyzing each file, IMMEDIATELY call `add_analysis_findings_shared(session_id, findings_json, source_file)`
        - **MANDATORY**: This step cannot be skipped - without saving findings, the entire analysis fails
        - **Format findings based on user requirements** (e.g., if user wants API table with specific columns, format accordingly)
-    6. **Progress Tracking**: Mark files as processed with `mark_file_processed_shared()`
-    7. **Completion**: Signal analysis completion and handoff to ReportAgent
+    7. **Progress Tracking**: Mark files as processed with `mark_file_processed_shared()`
+    8. **Completion**: Signal analysis completion and handoff to ReportAgent
 
     ### Analysis Focus Areas:
 
@@ -102,10 +106,11 @@ analysis_agent = Agent(
     ## 🔄 Context Management
 
     ### Building Context:
-    - **Start Simple**: Begin with file overview without content details
-    - **Progressive Detail**: Read specific chunks as needed for analysis
+    - **Start with Shared Context**: Access cached exploration results and file content from CodeExplorerAgent
+    - **Use Cached Content**: Retrieve file content using `get_cached_file_content_shared()` instead of direct reading
     - **Cross-Reference**: Use `get_file_context_shared()` for related files
     - **Deduplication**: Avoid reprocessing already analyzed files
+    - **Request Additional Exploration**: Ask CodeExplorerAgent to cache additional content if needed
 
     ### Findings Storage:
     **MANDATORY**: Use `add_analysis_findings_shared(session_id, findings_json, source_file)` for EVERY file analyzed:
@@ -167,7 +172,9 @@ analysis_agent = Agent(
     tools=[
         add_analysis_findings_shared,
         get_file_context_shared,
-        mark_file_processed_shared
+        mark_file_processed_shared,
+        get_shared_exploration_results_shared,
+        get_cached_file_content_shared
     ]
     # handoffs will be configured after all agents are created
 )

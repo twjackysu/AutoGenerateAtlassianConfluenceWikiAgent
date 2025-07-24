@@ -56,6 +56,7 @@ def configure_multi_agent_handoffs():
     # Import all agents and handoff function
     from .supervisor_agent import supervisor_agent
     from .github_agent import github_agent
+    from .code_explorer_agent import code_explorer_agent
     from .analysis_agent import analysis_agent
     from .report_agent import report_agent
     from .save_or_upload_report_agent import save_or_upload_report_agent
@@ -64,6 +65,7 @@ def configure_multi_agent_handoffs():
     # Configure SupervisorAgent handoffs with session data passing
     supervisor_agent.handoffs = [
         handoff(github_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
+        handoff(code_explorer_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
         handoff(analysis_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData), 
         handoff(report_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
         handoff(save_or_upload_report_agent, on_handoff=report_handoff_callback, input_type=ReportHandoffData)
@@ -74,9 +76,16 @@ def configure_multi_agent_handoffs():
         handoff(supervisor_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData)
     ]
     
+    # Configure CodeExplorerAgent handoffs
+    code_explorer_agent.handoffs = [
+        handoff(supervisor_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
+        handoff(analysis_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData)
+    ]
+    
     # Configure AnalysisAgent handoffs
     analysis_agent.handoffs = [
         handoff(supervisor_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
+        handoff(code_explorer_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
         handoff(report_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData)
     ]
     
@@ -94,7 +103,8 @@ def configure_multi_agent_handoffs():
     print("✅ Multi-agent handoffs configured successfully")
     return {
         'supervisor': supervisor_agent,
-        'github': github_agent, 
+        'github': github_agent,
+        'code_explorer': code_explorer_agent, 
         'analysis': analysis_agent,
         'report': report_agent,
         'save_or_upload_report': save_or_upload_report_agent

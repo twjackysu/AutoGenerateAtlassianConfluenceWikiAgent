@@ -6,11 +6,7 @@ This agent performs the core analysis work in the multi-agent system.
 
 import os
 from agents import Agent
-from ...tools.file_operations import (
-    scan_repository_extensions_shared,
-    list_all_code_files_shared,
-    read_file_smart_shared
-)
+# File operations tools moved to CodeExplorerAgent for better separation of concerns
 from ...tools.context_operations import (
     add_analysis_findings_shared,
     get_file_context_shared,
@@ -49,23 +45,21 @@ analysis_agent = Agent(
 
     ### Your Analysis Workflow:
     1. **Session ID Receipt**: Extract session_id from handoff data and use it throughout analysis
-    2. **Repository Discovery**: 
-       a) First use `scan_repository_extensions_shared()` to discover what file types exist in the repository
-       b) Then use `list_all_code_files_shared()` with the discovered extensions for targeted scanning
-    3. **File Prioritization**: Process files systematically based on size and importance
-    4. **Intelligent Reading**: Use `read_file_smart_shared()` with repository path + relative file path
-       - **IMPORTANT**: Use repo_path parameter with the repository path from handoff data
-       - **CRITICAL**: For complete analysis, read ALL chunks of each file:
-         a) First call `read_file_smart_shared(file_path, repo_path=repo_path)` to get file overview and total chunks
-         b) Then systematically read each chunk: call `read_file_smart_shared(file_path, chunk_index=0, repo_path=repo_path)`, then `read_file_smart_shared(file_path, chunk_index=1, repo_path=repo_path)`, etc.
-         c) Continue until all chunks are read (agent memory will retain all previous chunks)
-       - **FAILURE CONDITION**: Reading only the overview or first chunk will miss findings in later chunks
-    5. **Pattern Extraction**: Identify patterns based on user requirements from ALL chunks you have read
-    6. **CRITICAL REQUIREMENT**: After analyzing each file, IMMEDIATELY call `add_analysis_findings_shared(session_id, findings_json, source_file)`
+    2. **CodeExplorerAgent Coordination**: 
+       - **File Discovery**: Request CodeExplorerAgent to scan repository and discover relevant files
+       - **Content Retrieval**: Request specific file content through CodeExplorerAgent's smart reading
+       - **Reference Analysis**: When needed, ask CodeExplorerAgent to find symbol references
+    3. **Content Analysis**: Focus on semantic analysis of provided file content
+       - **Pattern Recognition**: Identify APIs, frameworks, architectural patterns, design patterns
+       - **Dependency Mapping**: Understand relationships between components
+       - **Security Assessment**: Identify authentication, authorization, and security patterns
+       - **Performance Analysis**: Assess complexity and performance considerations
+    4. **Context Integration**: Use `get_file_context_shared()` to build on previous analysis
+    5. **CRITICAL REQUIREMENT**: After analyzing each file, IMMEDIATELY call `add_analysis_findings_shared(session_id, findings_json, source_file)`
        - **MANDATORY**: This step cannot be skipped - without saving findings, the entire analysis fails
        - **Format findings based on user requirements** (e.g., if user wants API table with specific columns, format accordingly)
-    7. **Progress Tracking**: Mark files as processed with `mark_file_processed_shared()`
-    8. **Completion**: Signal analysis completion and handoff to ReportAgent
+    6. **Progress Tracking**: Mark files as processed with `mark_file_processed_shared()`
+    7. **Completion**: Signal analysis completion and handoff to ReportAgent
 
     ### Analysis Focus Areas:
 
@@ -171,9 +165,6 @@ analysis_agent = Agent(
     **Remember**: You are the analysis specialist. Focus on extracting maximum value from the codebase while maintaining efficiency and accuracy. Your thorough analysis forms the foundation for high-quality reports and insights.
     """,
     tools=[
-        scan_repository_extensions_shared,
-        list_all_code_files_shared,
-        read_file_smart_shared,
         add_analysis_findings_shared,
         get_file_context_shared,
         mark_file_processed_shared

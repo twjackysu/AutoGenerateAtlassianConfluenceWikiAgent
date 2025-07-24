@@ -1127,3 +1127,474 @@ The new page has been created and is now live on Confluence.
         
     except Exception as e:
         return f"❌ **Error uploading to Confluence**: {str(e)}"
+
+
+@function_tool
+async def scan_files_by_pattern_shared(
+    repo_path: str,
+    filename_patterns: Optional[List[str]] = None,
+    path_patterns: Optional[List[str]] = None,
+    content_keywords: Optional[List[str]] = None,
+    max_files: int = 1000
+) -> str:
+    """
+    Smart file scanning that supports multiple search patterns beyond file extensions.
+    Designed to help AnalysisAgent find files based on user requirements.
+    
+    Args:
+        repo_path: Path to the repository root
+        filename_patterns: List of filename glob patterns (e.g. ["*Dockerfile*", "Makefile", "*.config"])
+        path_patterns: List of path glob patterns (e.g. ["src/controllers/*", "*/migrations/*"])
+        content_keywords: List of keywords to search in file content (e.g. ["@RestController", "class.*Controller"])
+        max_files: Maximum number of files to return (default: 1000)
+    
+    Returns:
+        Formatted string with found files and metadata
+    """
+    try:
+        import fnmatch
+        import glob
+        
+        # Check if this looks like a GitHub repo name and adjust path
+        if not os.path.exists(repo_path):
+            potential_repo_path = os.path.join("repos", repo_path)
+            if os.path.exists(potential_repo_path):
+                repo_path = potential_repo_path
+            else:
+                return f"❌ Error: Repository path does not exist: {repo_path} (also tried repos/{repo_path})"
+        
+        repo_path = os.path.abspath(repo_path)
+        found_files = []
+        
+        # 1. Search by filename patterns
+        if filename_patterns:
+            for pattern in filename_patterns:
+                for root, dirs, files in os.walk(repo_path):
+                    # Skip unwanted directories
+                    dirs[:] = [d for d in dirs if not should_skip_directory(d)]
+                    
+                    for file_name in files:
+                        if fnmatch.fnmatch(file_name, pattern):
+                            file_path = os.path.join(root, file_name)
+                            relative_path = os.path.relpath(file_path, repo_path)
+                            
+                            if should_skip_file(file_name):
+                                continue
+                                
+                            try:
+                                stat = os.stat(file_path)
+                                found_files.append({
+                                    'path': file_path,
+                                    'relative_path': relative_path,
+                                    'size': stat.st_size,
+                                    'match_type': 'filename_pattern',
+                                    'match_pattern': pattern,
+                                    'language': detect_language(file_name),
+                                    'modified_time': stat.st_mtime
+                                })
+                            except (OSError, PermissionError):
+                                continue
+        
+        # 2. Search by path patterns
+        if path_patterns:
+            for pattern in path_patterns:
+                # Convert relative pattern to absolute
+                search_pattern = os.path.join(repo_path, pattern)
+                matched_paths = glob.glob(search_pattern, recursive=True)
+                
+                for file_path in matched_paths:
+                    if os.path.isfile(file_path):
+                        relative_path = os.path.relpath(file_path, repo_path)
+                        file_name = os.path.basename(file_path)
+                        
+                        if should_skip_file(file_name):
+                            continue
+                            
+                        try:
+                            stat = os.stat(file_path)
+                            found_files.append({
+                                'path': file_path,
+                                'relative_path': relative_path,
+                                'size': stat.st_size,
+                                'match_type': 'path_pattern',
+                                'match_pattern': pattern,
+                                'language': detect_language(file_name),
+                                'modified_time': stat.st_mtime
+                            })
+                        except (OSError, PermissionError):
+                            continue
+        
+        # 3. Search by content keywords (limited search for performance)
+        if content_keywords:
+            # First get all text files to search
+            text_extensions = {'.py', '.js', '.ts', '.java', '.cs', '.cpp', '.c', '.h', '.hpp', 
+                             '.go', '.php', '.rb', '.rs', '.swift', '.kt', '.scala', '.pl', 
+                             '.sh', '.bash', '.ps1', '.yaml', '.yml', '.json', '.xml', '.html', 
+                             '.css', '.scss', '.sass', '.vue', '.svelte', '.md', '.txt'}
+            
+            for root, dirs, files in os.walk(repo_path):
+                dirs[:] = [d for d in dirs if not should_skip_directory(d)]
+                
+                for file_name in files:
+                    file_ext = Path(file_name).suffix.lower()
+                    if file_ext in text_extensions and not should_skip_file(file_name):
+                        file_path = os.path.join(root, file_name)
+                        relative_path = os.path.relpath(file_path, repo_path)
+                        
+                        try:
+                            # Check file size (skip very large files for content search)
+                            stat = os.stat(file_path)
+                            if stat.st_size > 1024 * 1024:  # Skip files larger than 1MB
+                                continue
+                                
+                            # Read and search content
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                content = f.read()
+                                
+                            # Check if any keyword matches
+                            matched_keywords = []
+                            for keyword in content_keywords:
+                                if re.search(keyword, content, re.IGNORECASE):
+                                    matched_keywords.append(keyword)
+                            
+                            if matched_keywords:
+                                found_files.append({
+                                    'path': file_path,
+                                    'relative_path': relative_path,
+                                    'size': stat.st_size,
+                                    'match_type': 'content_keyword',
+                                    'match_pattern': ', '.join(matched_keywords),
+                                    'language': detect_language(file_name),
+                                    'modified_time': stat.st_mtime
+                                })
+                        except (OSError, PermissionError, UnicodeDecodeError):
+                            continue
+        
+        # Remove duplicates (same file matched by multiple patterns)
+        unique_files = {}
+        for file_info in found_files:
+            path = file_info['relative_path']
+            if path not in unique_files:
+                unique_files[path] = file_info
+            else:
+                # Combine match information
+                existing = unique_files[path]
+                existing['match_pattern'] += f" + {file_info['match_pattern']}"
+                existing['match_type'] += f" + {file_info['match_type']}"
+        
+        found_files = list(unique_files.values())
+        
+        # Sort by size (largest first) and limit results
+        found_files.sort(key=lambda x: x['size'], reverse=True)
+        if len(found_files) > max_files:
+            found_files = found_files[:max_files]
+        
+        # Generate output
+        total_size = sum(f['size'] for f in found_files)
+        
+        output = f"""# 🔍 Smart File Pattern Search Results
+        
+## 📊 Search Summary
+- **Repository**: `{repo_path}`
+- **Files Found**: {len(found_files)}
+- **Total Size**: {total_size / (1024*1024):.1f} MB ({total_size:,} bytes)
+- **Search Patterns**:
+"""
+        
+        if filename_patterns:
+            output += f"  - **Filename patterns**: {filename_patterns}\n"
+        if path_patterns:
+            output += f"  - **Path patterns**: {path_patterns}\n"
+        if content_keywords:
+            output += f"  - **Content keywords**: {content_keywords}\n"
+        
+        # Group by match type
+        by_match_type = {}
+        for file_info in found_files:
+            match_type = file_info['match_type'].split(' + ')[0]  # Get primary match type
+            if match_type not in by_match_type:
+                by_match_type[match_type] = []
+            by_match_type[match_type].append(file_info)
+        
+        for match_type, files in by_match_type.items():
+            output += f"\n## 📁 Files found by {match_type.replace('_', ' ').title()}\n"
+            output += f"Found {len(files)} files:\n\n"
+            
+            for i, file_info in enumerate(files, 1):
+                size_mb = file_info['size'] / (1024*1024)
+                output += f"{i:3d}. `{file_info['relative_path']}` "
+                output += f"({size_mb:.2f} MB, {file_info['language']}) - Matched: {file_info['match_pattern']}\n"
+        
+        output += f"""
+        
+## 💡 Usage with Analysis Tools
+To analyze these files, use:
+- `read_file_smart_shared(file_path, repo_path="{repo_path}")` for content analysis
+- `list_all_code_files_shared("{repo_path}", extensions=[...])` for comprehensive scanning
+        """
+        
+        return output
+        
+    except Exception as e:
+        return f"❌ Error in smart file pattern search: {str(e)}"
+
+
+@function_tool
+async def find_code_references_shared(
+    repo_path: str,
+    symbol: str,
+    symbol_type: str = "auto",
+    file_extensions: Optional[List[str]] = None,
+    max_results: int = 500
+) -> str:
+    """
+    Find all references to a specific code symbol (function, class, variable, etc.) across the repository.
+    Similar to IDE's "Find References" functionality.
+    
+    Args:
+        repo_path: Path to the repository root
+        symbol: The symbol to search for (e.g., "getUserById", "UserService", "DATABASE_URL")
+        symbol_type: Type of symbol ("function", "class", "variable", "auto" for automatic detection)
+        file_extensions: List of file extensions to search in (default: all code files)
+        max_results: Maximum number of references to return (default: 500)
+    
+    Returns:
+        Formatted string with all found references and their contexts
+    """
+    try:
+        import ast
+        
+        # Check if this looks like a GitHub repo name and adjust path
+        if not os.path.exists(repo_path):
+            potential_repo_path = os.path.join("repos", repo_path)
+            if os.path.exists(potential_repo_path):
+                repo_path = potential_repo_path
+            else:
+                return f"❌ Error: Repository path does not exist: {repo_path} (also tried repos/{repo_path})"
+        
+        repo_path = os.path.abspath(repo_path)
+        references = []
+        definitions = []
+        
+        # Default file extensions for code analysis
+        if file_extensions is None:
+            file_extensions = ['.py', '.js', '.ts', '.java', '.cs', '.cpp', '.c', '.h', '.hpp', 
+                             '.go', '.php', '.rb', '.rs', '.swift', '.kt', '.scala']
+        
+        # Normalize extensions
+        file_extensions = [ext if ext.startswith('.') else f'.{ext}' for ext in file_extensions]
+        
+        # Different search patterns based on symbol type
+        search_patterns = []
+        
+        if symbol_type in ["function", "auto"]:
+            # Function call patterns
+            search_patterns.extend([
+                rf'\b{re.escape(symbol)}\s*\(',  # function()
+                rf'\.{re.escape(symbol)}\s*\(',  # obj.function()
+                rf'->{re.escape(symbol)}\s*\(',  # ptr->function() (C/C++)
+                rf'::{re.escape(symbol)}\s*\(',  # namespace::function() (C++)
+            ])
+        
+        if symbol_type in ["class", "auto"]:
+            # Class usage patterns
+            search_patterns.extend([
+                rf'\b{re.escape(symbol)}\b',  # Simple class name
+                rf'new\s+{re.escape(symbol)}\s*\(',  # new ClassName()
+                rf'instanceof\s+{re.escape(symbol)}\b',  # instanceof ClassName
+                rf'extends\s+{re.escape(symbol)}\b',  # extends ClassName
+                rf'implements\s+{re.escape(symbol)}\b',  # implements ClassName
+                rf':\s*{re.escape(symbol)}\b',  # Type annotation
+            ])
+        
+        if symbol_type in ["variable", "auto"]:
+            # Variable usage patterns
+            search_patterns.extend([
+                rf'\b{re.escape(symbol)}\b',  # Simple variable name
+                rf'\.{re.escape(symbol)}\b',  # obj.variable
+                rf'->{re.escape(symbol)}\b',  # ptr->variable
+            ])
+        
+        # If auto detection, include all patterns
+        if symbol_type == "auto":
+            search_patterns = list(set(search_patterns))  # Remove duplicates
+        
+        # Search through files
+        for root, dirs, files in os.walk(repo_path):
+            # Skip unwanted directories
+            dirs[:] = [d for d in dirs if not should_skip_directory(d)]
+            
+            for file_name in files:
+                file_ext = Path(file_name).suffix.lower()
+                if file_ext not in file_extensions or should_skip_file(file_name):
+                    continue
+                
+                file_path = os.path.join(root, file_name)
+                relative_path = os.path.relpath(file_path, repo_path)
+                
+                try:
+                    # Check file size (skip very large files)
+                    stat = os.stat(file_path)
+                    if stat.st_size > 2 * 1024 * 1024:  # Skip files larger than 2MB
+                        continue
+                    
+                    # Read file content
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                    
+                    lines = content.split('\n')
+                    
+                    # Search for patterns in each line
+                    for line_num, line in enumerate(lines, 1):
+                        line_stripped = line.strip()
+                        if not line_stripped or line_stripped.startswith(('#', '//', '/*', '*')):
+                            continue  # Skip comments and empty lines
+                        
+                        for pattern in search_patterns:
+                            matches = re.finditer(pattern, line, re.IGNORECASE)
+                            for match in matches:
+                                # Determine if this is likely a definition or reference
+                                is_definition = _is_likely_definition(line, symbol, file_ext)
+                                
+                                reference_info = {
+                                    'file_path': file_path,
+                                    'relative_path': relative_path,
+                                    'line_number': line_num,
+                                    'line_content': line.strip(),
+                                    'match_start': match.start(),
+                                    'match_end': match.end(),
+                                    'pattern_matched': pattern,
+                                    'language': detect_language(file_name),
+                                    'is_definition': is_definition,
+                                    'context_before': lines[max(0, line_num-2):line_num-1] if line_num > 1 else [],
+                                    'context_after': lines[line_num:line_num+2] if line_num < len(lines) else []
+                                }
+                                
+                                if is_definition:
+                                    definitions.append(reference_info)
+                                else:
+                                    references.append(reference_info)
+                                
+                                # Limit results to prevent memory issues
+                                if len(references) + len(definitions) >= max_results:
+                                    break
+                            
+                            if len(references) + len(definitions) >= max_results:
+                                break
+                        
+                        if len(references) + len(definitions) >= max_results:
+                            break
+                    
+                except (OSError, PermissionError, UnicodeDecodeError):
+                    continue
+                
+                if len(references) + len(definitions) >= max_results:
+                    break
+        
+        # Sort results
+        definitions.sort(key=lambda x: (x['relative_path'], x['line_number']))
+        references.sort(key=lambda x: (x['relative_path'], x['line_number']))
+        
+        # Generate output
+        total_found = len(definitions) + len(references)
+        
+        output = f"""# 🔍 Code References for '{symbol}'
+
+## 📊 Search Summary
+- **Repository**: `{repo_path}`
+- **Symbol**: `{symbol}`
+- **Symbol Type**: {symbol_type}
+- **Total References**: {total_found} (Definitions: {len(definitions)}, References: {len(references)})
+- **File Extensions Searched**: {file_extensions}
+
+"""
+        
+        # Show definitions first
+        if definitions:
+            output += f"## 🎯 Definitions ({len(definitions)})\n\n"
+            for i, ref in enumerate(definitions, 1):
+                output += f"### {i}. `{ref['relative_path']}:{ref['line_number']}`\n"
+                output += f"**Language**: {ref['language']}\n"
+                output += f"```{ref['language'].lower()}\n{ref['line_content']}\n```\n\n"
+        
+        # Show references
+        if references:
+            output += f"## 📍 References ({len(references)})\n\n"
+            
+            # Group by file for better organization
+            by_file = {}
+            for ref in references:
+                file_path = ref['relative_path']
+                if file_path not in by_file:
+                    by_file[file_path] = []
+                by_file[file_path].append(ref)
+            
+            for file_path, file_refs in by_file.items():
+                output += f"### 📄 {file_path} ({len(file_refs)} references)\n"
+                output += f"**Language**: {file_refs[0]['language']}\n\n"
+                
+                for ref in file_refs:
+                    output += f"**Line {ref['line_number']}**:\n"
+                    output += f"```{ref['language'].lower()}\n{ref['line_content']}\n```\n\n"
+        
+        if not definitions and not references:
+            output += f"❌ **No references found** for symbol '{symbol}' in the repository.\n\n"
+            output += "**Suggestions**:\n"
+            output += f"- Check if the symbol name is spelled correctly\n"
+            output += f"- Try different symbol_type: 'function', 'class', 'variable', or 'auto'\n"
+            output += f"- Verify the file extensions cover the languages you're interested in\n"
+        
+        output += f"""
+## 💡 Usage Tips
+- **Read specific file**: `read_file_smart_shared("{definitions[0]['relative_path'] if definitions else references[0]['relative_path'] if references else 'path'}", repo_path="{repo_path}")`
+- **Search related symbols**: Use `find_code_references_shared()` with related function/class names
+- **Analyze file context**: Use `get_file_context_shared()` for broader understanding
+"""
+        
+        return output
+        
+    except Exception as e:
+        return f"❌ Error in code reference search: {str(e)}"
+
+
+def _is_likely_definition(line: str, symbol: str, file_ext: str) -> bool:
+    """
+    Heuristic to determine if a line contains a definition rather than a reference.
+    """
+    line_lower = line.lower().strip()
+    symbol_lower = symbol.lower()
+    
+    # Common definition keywords by language
+    definition_keywords = {
+        '.py': ['def ', 'class ', 'async def '],
+        '.js': ['function ', 'const ', 'let ', 'var ', 'class '],
+        '.ts': ['function ', 'const ', 'let ', 'var ', 'class ', 'interface ', 'type '],
+        '.java': ['public ', 'private ', 'protected ', 'class ', 'interface ', 'enum '],
+        '.cs': ['public ', 'private ', 'protected ', 'class ', 'interface ', 'struct ', 'enum '],
+        '.cpp': ['class ', 'struct ', 'enum ', 'namespace '],
+        '.c': ['struct ', 'enum ', 'typedef '],
+        '.go': ['func ', 'type ', 'var ', 'const '],
+        '.php': ['function ', 'class ', 'interface ', 'trait '],
+        '.rb': ['def ', 'class ', 'module '],
+        '.rs': ['fn ', 'struct ', 'enum ', 'trait ', 'impl '],
+    }
+    
+    keywords = definition_keywords.get(file_ext, [])
+    
+    # Check if line starts with definition keywords
+    for keyword in keywords:
+        if keyword in line_lower and symbol_lower in line_lower:
+            # Additional check: symbol should appear after the keyword
+            keyword_pos = line_lower.find(keyword)
+            symbol_pos = line_lower.find(symbol_lower)
+            if symbol_pos > keyword_pos:
+                return True
+    
+    # Check for assignment patterns (variable definitions)
+    if '=' in line and symbol_lower in line_lower:
+        equal_pos = line.find('=')
+        symbol_pos = line_lower.find(symbol_lower)
+        if symbol_pos < equal_pos:  # Symbol appears before =
+            return True
+    
+    return False

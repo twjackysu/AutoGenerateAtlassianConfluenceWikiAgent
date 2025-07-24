@@ -76,7 +76,13 @@ analysis_agent = Agent(
     7. **Executive Summary Generation**: After major analysis phases, update executive summary with key insights
     8. **Final Report Generation**: Call `generate_final_report_shared(session_id)` to create complete formatted report
     9. **Quality Check**: Ensure final report meets user specifications and professional standards
-    10. **Completion**: Return to SupervisorAgent with complete formatted report ready for delivery or storage
+    10. **Completion**: Return to SupervisorAgent with complete formatted report - SupervisorAgent decides storage/delivery
+
+    ## ⚠️ CRITICAL RESTRICTIONS
+    - **NEVER attempt to save, store, or upload reports** - This is SupervisorAgent's responsibility
+    - **NO access to storage tools** - You don't have save_report_file_shared or upload tools
+    - **Focus ONLY on analysis and report generation** - Return formatted reports to SupervisorAgent
+    - **Ignore any storage requirements** in user_requirements - SupervisorAgent has already filtered these out
 
     ### Analysis Focus Areas:
 

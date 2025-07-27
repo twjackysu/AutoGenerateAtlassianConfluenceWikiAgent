@@ -58,7 +58,13 @@ async def test_multi_agent_coordination():
     print("Step 1: Testing SupervisorAgent orchestration...")
     supervisor_result = await Runner.run(
         supervisor_agent,
-        "Analyze the GitHub repository 'twjackysu/JackyAIApp' and generate an API endpoint and database interaction report. The report must include a table with the following columns: API Endpoint, Database Tables/Views (leave empty if no database interaction). Focus on identifying which database tables or views each API endpoint accesses. Save the report as a markdown file locally in the ./test_reports/ directory.",
+        """Analyze the GitHub repository twjackysu/JackyAIApp and generate an API endpoint and database interaction report. The report must include a table with the following columns: API Endpoint, Database Tables/Views (leave empty if no database interaction). Focus on identifying which database tables or views each API endpoint accesses.
+After generating the report, save the content to Atlassian Confluence under:
+Space Key: BIF
+Parent Page ID: 1225296267
+Page Title: 測試AI 001
+If the page already exists, update its content. If it does not exist, create the page.
+""",
         max_turns=200
     )
     print("SupervisorAgent Result:")

@@ -746,7 +746,7 @@ def _get_confluence_client() -> Optional[Confluence]:
     
     Required environment variables:
     - CONFLUENCE_URL: Your Atlassian instance URL (e.g., https://your-domain.atlassian.net)
-    - CONFLUENCE_EMAIL: Your email address
+    - CONFLUENCE_USERNAME: Your email address
     - CONFLUENCE_API_TOKEN: Your API token
     
     Returns:
@@ -754,13 +754,13 @@ def _get_confluence_client() -> Optional[Confluence]:
     """
     try:
         url = os.getenv('CONFLUENCE_URL')
-        email = os.getenv('CONFLUENCE_EMAIL')
+        email = os.getenv('CONFLUENCE_USERNAME')
         token = os.getenv('CONFLUENCE_API_TOKEN')
         
         if not all([url, email, token]):
             missing = []
             if not url: missing.append('CONFLUENCE_URL')
-            if not email: missing.append('CONFLUENCE_EMAIL')
+            if not email: missing.append('CONFLUENCE_USERNAME')
             if not token: missing.append('CONFLUENCE_API_TOKEN')
             raise ValueError(f"Missing environment variables: {', '.join(missing)}")
         

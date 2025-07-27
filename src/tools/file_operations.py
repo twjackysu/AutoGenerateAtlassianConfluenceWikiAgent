@@ -1057,10 +1057,11 @@ async def upload_to_confluence_shared(
     Upload or update a report to Atlassian Confluence as a wiki page.
     
     Args:
-        content: The markdown content to upload
+        content: The content to upload (should be in Confluence Storage Format - HTML-like format)
+                 The calling agent should convert markdown to proper Confluence format
         title: The title of the wiki page
         space_key: The Confluence space key
-        page_id: If provided, update this existing page. If None, create new page.
+        page_id: If provided and not empty, update this existing page. If None or empty, create new page.
         parent_page_id: If creating new page, set this as parent page ID
     
     Returns:
@@ -1072,23 +1073,57 @@ async def upload_to_confluence_shared(
         if not confluence:
             return "❌ **Error**: Could not connect to Confluence. Please check your environment variables."
         
-        # Convert markdown to Confluence storage format
-        confluence_content = _convert_markdown_to_confluence_storage(content)
+        # Use content directly - let the LLM provide properly formatted content
+        # Note: The content should be in Confluence Storage Format (HTML-like format)
+        # The calling agent should handle the markdown-to-confluence conversion
+        confluence_content = content
         
-        if page_id:
+        # DEBUG: Print content for debugging
+        print(f"🔍 [DEBUG] Content to upload:")
+        print(content)
+        print(f"🔍 [DEBUG] ===========================================")
+        
+        if page_id and page_id.strip():
             # Update existing page
             try:
+                print(f"🔍 [DEBUG] Getting current page info for page_id: {page_id}")
                 current_page = confluence.get_page_by_id(page_id, expand='version')
-                current_version = current_page.get('version', {}).get('number', 1)
+                if not current_page:
+                    return f"❌ **Error**: Page with ID '{page_id}' not found"
                 
+                current_version = current_page.get('version', {}).get('number', 1)
+                print(f"🔍 [DEBUG] Current page version: {current_version}")
+                
+                print(f"🔍 [DEBUG] Updating page with title: '{title}', version: {current_version + 1}")
                 result = confluence.update_page(
                     page_id=page_id,
                     title=title,
-                    body=confluence_content,
-                    version_number=current_version + 1
+                    body=confluence_content
                 )
                 
+                print(f"🔍 [DEBUG] Update result: {result}")
+                
+                # Verify the update was successful
+                if not result:
+                    return f"❌ **Error**: Update operation failed - no result returned from Confluence API"
+                
+                # Check if result contains expected data
+                if isinstance(result, dict) and result.get('id') != page_id:
+                    return f"❌ **Error**: Update operation returned unexpected page ID. Expected: {page_id}, Got: {result.get('id')}"
+                
                 page_url = f"{os.getenv('CONFLUENCE_URL', '')}/spaces/{space_key}/pages/{page_id}"
+                
+                # Verify the page was actually updated by fetching it again
+                print(f"🔍 [DEBUG] Verifying page update...")
+                try:
+                    updated_page = confluence.get_page_by_id(page_id, expand='version')
+                    new_version = updated_page.get('version', {}).get('number', current_version)
+                    print(f"🔍 [DEBUG] Verified new version: {new_version}")
+                    
+                    if new_version <= current_version:
+                        return f"❌ **Error**: Page version was not updated. Current: {new_version}, Expected: {current_version + 1}"
+                except Exception as verify_e:
+                    print(f"⚠️ [WARNING] Could not verify page update: {str(verify_e)}")
                 
                 return f"""✅ **Page Updated Successfully**
 
@@ -1104,11 +1139,13 @@ The page has been updated and is now live on Confluence.
 """
                 
             except Exception as e:
+                print(f"❌ [ERROR] Exception during page update: {str(e)}")
                 return f"❌ **Error updating page**: {str(e)}"
         
         else:
             # Create new page
             try:
+                print(f"🔍 [DEBUG] Creating new page with title: '{title}' in space: '{space_key}'")
                 result = confluence.create_page(
                     space=space_key,
                     title=title,
@@ -1116,8 +1153,27 @@ The page has been updated and is now live on Confluence.
                     parent_id=parent_page_id
                 )
                 
+                print(f"🔍 [DEBUG] Create result: {result}")
+                
+                # Verify the create was successful
+                if not result:
+                    return f"❌ **Error**: Create operation failed - no result returned from Confluence API"
+                
                 new_page_id = result.get('id')
+                if not new_page_id:
+                    return f"❌ **Error**: Create operation failed - no page ID returned. Result: {result}"
+                
                 page_url = f"{os.getenv('CONFLUENCE_URL', '')}/spaces/{space_key}/pages/{new_page_id}"
+                
+                # Verify the page was actually created by fetching it
+                print(f"🔍 [DEBUG] Verifying page creation...")
+                try:
+                    created_page = confluence.get_page_by_id(new_page_id, expand='version')
+                    if not created_page:
+                        return f"❌ **Error**: Page was not created properly - cannot fetch page with ID {new_page_id}"
+                    print(f"🔍 [DEBUG] Verified page creation: {created_page.get('title', 'No title')}")
+                except Exception as verify_e:
+                    print(f"⚠️ [WARNING] Could not verify page creation: {str(verify_e)}")
                 
                 return f"""✅ **Page Created Successfully**
 
@@ -1133,6 +1189,7 @@ The new page has been created and is now live on Confluence.
 """
                 
             except Exception as e:
+                print(f"❌ [ERROR] Exception during page creation: {str(e)}")
                 return f"❌ **Error creating page**: {str(e)}"
         
     except Exception as e:

@@ -181,10 +181,19 @@ analysis_agent = Agent(
     - Confirm readiness for report generation
 
     ### Returning to SupervisorAgent:
-    - Report analysis completion status
-    - Highlight key findings and discoveries
-    - Mention any issues or limitations encountered
-    - Confirm data readiness for reporting phase
+    **CRITICAL**: Use ReportHandoffData format when handing off to SupervisorAgent:
+    ```json
+    {
+      "session_id": "your_session_id",
+      "report_content": "complete_formatted_report_from_generate_final_report_shared",
+      "storage_preference": "local",
+      "user_requirements": "original_user_request_received_from_supervisor"
+    }
+    ```
+    - Get complete formatted report using `generate_final_report_shared(session_id)`
+    - Pass the full report content in `report_content` field
+    - Include original user requirements from the handoff you received
+    - Report analysis completion status and key findings
 
     **Remember**: You are the analysis specialist. Focus on extracting maximum value from the codebase while maintaining efficiency and accuracy. Your thorough analysis forms the foundation for high-quality reports and insights.
     """,

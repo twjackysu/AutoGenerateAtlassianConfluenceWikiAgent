@@ -94,7 +94,7 @@ def configure_multi_agent_handoffs():
     
     # Configure AnalysisAgent handoffs
     analysis_agent.handoffs = [
-        handoff(supervisor_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData),
+        handoff(supervisor_agent, on_handoff=report_handoff_callback, input_type=ReportHandoffData),
         handoff(code_explorer_agent, on_handoff=session_handoff_callback, input_type=SessionHandoffData)
     ]
     

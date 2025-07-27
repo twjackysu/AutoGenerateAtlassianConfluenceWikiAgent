@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from agents import function_tool
+from src.logging_system import get_tool_logger
 
 
 @function_tool
@@ -27,7 +28,8 @@ async def add_analysis_findings_shared(
     Returns:
         Confirmation of findings addition
     """
-    print(f"🔧 [TOOL] add_analysis_findings_shared(session_id='{session_id}', source_file='{source_file}', findings_length={len(findings)})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("add_analysis_findings_shared", session_id=session_id, source_file=source_file, findings_length=len(findings))
     try:
         # Ensure cache directory exists
         cache_dir = "./cache"
@@ -107,7 +109,8 @@ async def get_file_context_shared(
     Returns:
         Context information for the file
     """
-    print(f"🔧 [TOOL] get_file_context_shared(session_id='{session_id}', file_path='{file_path}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("get_file_context_shared", session_id=session_id, file_path=file_path)
     try:
         # Load context file
         context_file = f"./cache/multi_agent_context_{session_id}.json"
@@ -182,7 +185,8 @@ async def mark_file_processed_shared(
     Returns:
         Confirmation of file processing status
     """
-    print(f"🔧 [TOOL] mark_file_processed_shared(session_id='{session_id}', file_path='{file_path}', processing_agent='{processing_agent}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("mark_file_processed_shared", session_id=session_id, file_path=file_path, processing_agent=processing_agent)
     try:
         # Ensure cache directory exists
         cache_dir = "./cache"
@@ -250,7 +254,8 @@ async def get_session_context_summary_shared(session_id: str) -> str:
     Returns:
         Comprehensive context summary
     """
-    print(f"🔧 [TOOL] get_session_context_summary_shared(session_id='{session_id}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("get_session_context_summary_shared", session_id=session_id)
     try:
         # Load context file
         context_file = f"./cache/multi_agent_context_{session_id}.json"
@@ -325,7 +330,8 @@ async def cache_exploration_results_shared(
     Returns:
         Confirmation of caching operation
     """
-    print(f"🔧 [TOOL] cache_exploration_results_shared(session_id='{session_id}', exploration_type='{exploration_type}', exploration_data_length={len(exploration_data)})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("cache_exploration_results_shared", session_id=session_id, exploration_type=exploration_type, exploration_data_length=len(exploration_data))
     try:
         # Ensure cache directory exists
         cache_dir = "./cache"
@@ -411,7 +417,8 @@ async def get_shared_exploration_results_shared(
     Returns:
         Exploration results or summary
     """
-    print(f"🔧 [TOOL] get_shared_exploration_results_shared(session_id='{session_id}', exploration_type='{exploration_type}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("get_shared_exploration_results_shared", session_id=session_id, exploration_type=exploration_type)
     try:
         # Load shared context file
         context_file = f"./cache/shared_context_{session_id}.json"
@@ -499,7 +506,8 @@ async def cache_file_content_shared(
     Returns:
         Confirmation of caching operation
     """
-    print(f"🔧 [TOOL] cache_file_content_shared(session_id='{session_id}', file_path='{file_path}', content_data_length={len(content_data)})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("cache_file_content_shared", session_id=session_id, file_path=file_path, content_data_length=len(content_data))
     try:
         # Ensure cache directory exists
         cache_dir = "./cache"
@@ -572,7 +580,8 @@ async def initialize_progressive_report_shared(
     Returns:
         Confirmation of report initialization
     """
-    print(f"🔧 [TOOL] initialize_progressive_report_shared(session_id='{session_id}', report_title='{report_title}', output_format='{output_format}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("initialize_progressive_report_shared", session_id=session_id, report_title=report_title, output_format=output_format)
     try:
         # Ensure cache directory exists
         cache_dir = "./cache"
@@ -657,7 +666,8 @@ async def update_progressive_report_shared(
     Returns:
         Confirmation of report update
     """
-    print(f"🔧 [TOOL] update_progressive_report_shared(session_id='{session_id}', section='{section}', content_length={len(content)}, append_mode={append_mode})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("update_progressive_report_shared", session_id=session_id, section=section, content_length=len(content), append_mode=append_mode)
     try:
         # Load shared context file
         context_file = f"./cache/shared_context_{session_id}.json"
@@ -725,7 +735,8 @@ async def generate_final_report_shared(
     Returns:
         Complete formatted report ready for delivery
     """
-    print(f"🔧 [TOOL] generate_final_report_shared(session_id='{session_id}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("generate_final_report_shared", session_id=session_id)
     try:
         # Load shared context file
         context_file = f"./cache/shared_context_{session_id}.json"
@@ -819,7 +830,8 @@ async def get_cached_file_content_shared(
     Returns:
         Cached file content and metadata
     """
-    print(f"🔧 [TOOL] get_cached_file_content_shared(session_id='{session_id}', file_path='{file_path}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("get_cached_file_content_shared", session_id=session_id, file_path=file_path)
     try:
         # Load shared context file
         context_file = f"./cache/shared_context_{session_id}.json"

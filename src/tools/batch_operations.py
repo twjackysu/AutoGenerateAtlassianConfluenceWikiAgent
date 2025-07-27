@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from agents import function_tool
+from src.logging_system import get_tool_logger
 
 
 @function_tool
@@ -29,7 +30,8 @@ async def create_processing_session_shared(
     Returns:
         Session details and initial setup information
     """
-    print(f"🔧 [TOOL] create_processing_session_shared(repo_path='{repo_path}', analysis_goal='{analysis_goal}', strategy='{strategy}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("create_processing_session_shared", repo_path=repo_path, analysis_goal=analysis_goal, strategy=strategy)
     try:
         # Generate unique session ID
         session_id = str(uuid.uuid4())[:8]
@@ -92,7 +94,8 @@ async def get_processing_progress_shared(session_id: str) -> str:
     Returns:
         Detailed progress report
     """
-    print(f"🔧 [TOOL] get_processing_progress_shared(session_id='{session_id}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("get_processing_progress_shared", session_id=session_id)
     try:
         # Find session file
         session_file = f"./cache/multi_agent_session_{session_id}.json"
@@ -140,7 +143,8 @@ async def get_next_tasks_shared(session_id: str, limit: int = 5) -> str:
     Returns:
         List of ready tasks with details
     """
-    print(f"🔧 [TOOL] get_next_tasks_shared(session_id='{session_id}', limit={limit})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("get_next_tasks_shared", session_id=session_id, limit=limit)
     try:
         # Find session file
         session_file = f"./cache/multi_agent_session_{session_id}.json"
@@ -196,7 +200,8 @@ async def update_task_status_shared(
     Returns:
         Update confirmation
     """
-    print(f"🔧 [TOOL] update_task_status_shared(session_id='{session_id}', task_id='{task_id}', status='{status}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("update_task_status_shared", session_id=session_id, task_id=task_id, status=status)
     try:
         # Find session file
         session_file = f"./cache/multi_agent_session_{session_id}.json"

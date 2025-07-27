@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from agents import function_tool
+from src.logging_system import get_tool_logger
 
 
 @function_tool
@@ -27,7 +28,8 @@ async def generate_report_shared(
     Returns:
         Report generation status and location
     """
-    print(f"🔧 [TOOL] generate_report_shared(session_id='{session_id}', report_type='{report_type}', output_path='{output_path}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("generate_report_shared", session_id=session_id, report_type=report_type, output_path=output_path)
     try:
         # Load context data
         context_file = f"./cache/multi_agent_context_{session_id}.json"
@@ -92,7 +94,8 @@ async def list_available_report_types_shared() -> str:
     Returns:
         List of available report types and descriptions
     """
-    print(f"🔧 [TOOL] list_available_report_types_shared()")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("list_available_report_types_shared")
     return """# 📋 Available Multi-Agent Report Types
 
 ## 🔍 Report Types

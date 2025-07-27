@@ -1,0 +1,64 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  default:
+    format: '[%(asctime)s] %(levelname)-8s %(name)-15s - %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+  
+  detailed:
+    format: '[%(asctime)s] %(levelname)-8s %(name)-15s [%(filename)s:%(lineno)d] - %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+  
+  tool_format:
+    format: '🔧 [%(asctime)s] %(levelname)-8s [%(name)s] %(message)s'
+    datefmt: '%H:%M:%S'
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: tool_format
+    stream: ext://sys.stdout
+  
+  file_all:
+    class: logging.handlers.RotatingFileHandler
+    level: DEBUG
+    formatter: detailed
+    filename: logs/app.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 5
+    encoding: utf8
+
+loggers:
+  # Tools loggers
+  tools:
+    level: DEBUG
+    handlers: [console, file_all]
+    propagate: false
+  
+  tools.file_operations:
+    level: DEBUG
+    handlers: [console, file_all]
+    propagate: false
+  
+  tools.confluence:
+    level: DEBUG
+    handlers: [console, file_all]
+    propagate: false
+  
+  # AI Agents loggers
+  ai_agents:
+    level: DEBUG
+    handlers: [console, file_all]
+    propagate: false
+  
+  # Test loggers
+  tests:
+    level: DEBUG
+    handlers: [console, file_all]
+    propagate: false
+
+root:
+  level: INFO
+  handlers: [console, file_all]

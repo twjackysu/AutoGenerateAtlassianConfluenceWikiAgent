@@ -115,6 +115,7 @@ dependencies = [
     { name = "openai" },
     { name = "openai-agents", extra = ["litellm"] },
     { name = "python-dotenv" },
+    { name = "pyyaml" },
     { name = "requests" },
 ]
 
@@ -124,6 +125,7 @@ requires-dist = [
     { name = "openai", specifier = ">=1.93.0" },
     { name = "openai-agents", extras = ["litellm"], specifier = ">=0.1.0" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
+    { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "requests", specifier = ">=2.31.0" },
 ]
 

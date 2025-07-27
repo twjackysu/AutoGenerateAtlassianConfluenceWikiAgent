@@ -9,6 +9,7 @@ import subprocess
 import shutil
 from pathlib import Path
 from agents import function_tool
+from src.logging_system import get_tool_logger
 
 
 @function_tool
@@ -33,7 +34,8 @@ async def clone_github_repo_shared(repo_url: str, local_path: str = None, branch
     Returns:
         Status message about clone operation
     """
-    print(f"🔧 [TOOL] clone_github_repo_shared(repo_url='{repo_url}', local_path='{local_path}', branch='{branch}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("clone_github_repo_shared", repo_url=repo_url, local_path=local_path, branch=branch)
     try:
         # Get environment settings
         default_host = os.getenv('GIT_HOST', 'github.com')

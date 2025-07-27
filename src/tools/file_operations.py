@@ -12,6 +12,7 @@ from agents import function_tool
 from atlassian import Confluence
 import requests
 from datetime import datetime
+from src.logging_system import get_tool_logger
 
 
 @dataclass
@@ -149,7 +150,8 @@ async def scan_repository_extensions_shared(
     Returns:
         Summary of all extensions found in the repository
     """
-    print(f"🔧 [TOOL] scan_repository_extensions_shared(repo_path='{repo_path}', include_config={include_config})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("scan_repository_extensions_shared", repo_path=repo_path, include_config=include_config)
     try:
         # Check if this looks like a GitHub repo name and adjust path
         if not os.path.exists(repo_path):
@@ -262,7 +264,8 @@ async def list_all_code_files_shared(
     Returns:
         JSON string with file information and summary statistics
     """
-    print(f"🔧 [TOOL] list_all_code_files_shared(repo_path='{repo_path}', extensions={extensions}, include_config={include_config})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("list_all_code_files_shared", repo_path=repo_path, extensions=extensions, include_config=include_config)
     try:
         # Check if this looks like a GitHub repo name and adjust path
         if not os.path.exists(repo_path):
@@ -511,7 +514,8 @@ async def read_file_smart_shared(
     Returns:
         Formatted string with file content and metadata
     """
-    print(f"🔧 [TOOL] read_file_smart_shared(file_path='{file_path}', chunk_index={chunk_index}, repo_path='{repo_path}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("read_file_smart_shared", file_path=file_path, chunk_index=chunk_index, repo_path=repo_path)
     try:
         # Handle relative paths by combining with repo_path
         if repo_path and not os.path.isabs(file_path):
@@ -709,7 +713,8 @@ async def save_report_file_shared(
     Returns:
         Status message with file path
     """
-    print(f"🔧 [TOOL] save_report_file_shared(filename='{filename}', directory='{directory}', content_length={len(content)})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("save_report_file_shared", filename=filename, directory=directory, content_length=len(content))
     try:
         from datetime import datetime
         
@@ -776,7 +781,8 @@ def _get_confluence_client() -> Optional[Confluence]:
         return confluence
         
     except Exception as e:
-        print(f"Failed to initialize Confluence client: {str(e)}")
+        logger = get_tool_logger(__name__)
+        logger.tool_error(f"Failed to initialize Confluence client: {str(e)}", exc_info=True)
         return None
 
 
@@ -838,7 +844,8 @@ async def search_confluence_spaces_shared(
     Returns:
         Formatted list of spaces with keys, names, and URLs
     """
-    print(f"🔧 [TOOL] search_confluence_spaces_shared(query='{query}', limit={limit})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("search_confluence_spaces_shared", query=query, limit=limit)
     try:
         confluence = _get_confluence_client()
         if not confluence:
@@ -914,7 +921,8 @@ async def search_confluence_pages_shared(
     Returns:
         Formatted list of pages with IDs, titles, and URLs
     """
-    print(f"🔧 [TOOL] search_confluence_pages_shared(space_key='{space_key}', query='{query}', limit={limit})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("search_confluence_pages_shared", space_key=space_key, query=query, limit=limit)
     try:
         confluence = _get_confluence_client()
         if not confluence:
@@ -986,7 +994,8 @@ async def get_confluence_page_info_shared(
     Returns:
         Detailed page information including title, space, content preview, and metadata
     """
-    print(f"🔧 [TOOL] get_confluence_page_info_shared(page_id='{page_id}')")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("get_confluence_page_info_shared", page_id=page_id)
     try:
         confluence = _get_confluence_client()
         if not confluence:
@@ -1067,65 +1076,77 @@ async def upload_to_confluence_shared(
     Returns:
         Status message with page URL and details
     """
-    print(f"🔧 [TOOL] upload_to_confluence_shared(title='{title}', space_key='{space_key}', page_id='{page_id}', content_length={len(content)})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("upload_to_confluence_shared", title=title, space_key=space_key, page_id=page_id, content_length=len(content))
+    
     try:
         confluence = _get_confluence_client()
         if not confluence:
-            return "❌ **Error**: Could not connect to Confluence. Please check your environment variables."
+            error_msg = "Could not connect to Confluence. Please check your environment variables."
+            logger.tool_error(error_msg)
+            return f"❌ **Error**: {error_msg}"
         
         # Use content directly - let the LLM provide properly formatted content
         # Note: The content should be in Confluence Storage Format (HTML-like format)
         # The calling agent should handle the markdown-to-confluence conversion
         confluence_content = content
         
-        # DEBUG: Print content for debugging
-        print(f"🔍 [DEBUG] Content to upload:")
-        print(content)
-        print(f"🔍 [DEBUG] ===========================================")
+        # DEBUG: Log content for debugging
+        logger.tool_debug("Content to upload:")
+        logger.tool_debug(content)
+        logger.tool_debug("=" * 50)
         
         if page_id and page_id.strip():
             # Update existing page
             try:
-                print(f"🔍 [DEBUG] Getting current page info for page_id: {page_id}")
+                logger.tool_debug(f"Getting current page info for page_id: {page_id}")
                 current_page = confluence.get_page_by_id(page_id, expand='version')
                 if not current_page:
-                    return f"❌ **Error**: Page with ID '{page_id}' not found"
+                    error_msg = f"Page with ID '{page_id}' not found"
+                    logger.tool_error(error_msg)
+                    return f"❌ **Error**: {error_msg}"
                 
                 current_version = current_page.get('version', {}).get('number', 1)
-                print(f"🔍 [DEBUG] Current page version: {current_version}")
+                logger.tool_debug(f"Current page version: {current_version}")
                 
-                print(f"🔍 [DEBUG] Updating page with title: '{title}', version: {current_version + 1}")
+                logger.tool_debug(f"Updating page with title: '{title}', version: {current_version + 1}")
                 result = confluence.update_page(
                     page_id=page_id,
                     title=title,
                     body=confluence_content
                 )
                 
-                print(f"🔍 [DEBUG] Update result: {result}")
+                logger.tool_debug(f"Update result: {result}")
                 
                 # Verify the update was successful
                 if not result:
-                    return f"❌ **Error**: Update operation failed - no result returned from Confluence API"
+                    error_msg = "Update operation failed - no result returned from Confluence API"
+                    logger.tool_error(error_msg)
+                    return f"❌ **Error**: {error_msg}"
                 
                 # Check if result contains expected data
                 if isinstance(result, dict) and result.get('id') != page_id:
-                    return f"❌ **Error**: Update operation returned unexpected page ID. Expected: {page_id}, Got: {result.get('id')}"
+                    error_msg = f"Update operation returned unexpected page ID. Expected: {page_id}, Got: {result.get('id')}"
+                    logger.tool_error(error_msg)
+                    return f"❌ **Error**: {error_msg}"
                 
                 page_url = f"{os.getenv('CONFLUENCE_URL', '')}/spaces/{space_key}/pages/{page_id}"
                 
                 # Verify the page was actually updated by fetching it again
-                print(f"🔍 [DEBUG] Verifying page update...")
+                logger.tool_debug("Verifying page update...")
                 try:
                     updated_page = confluence.get_page_by_id(page_id, expand='version')
                     new_version = updated_page.get('version', {}).get('number', current_version)
-                    print(f"🔍 [DEBUG] Verified new version: {new_version}")
+                    logger.tool_debug(f"Verified new version: {new_version}")
                     
                     if new_version <= current_version:
-                        return f"❌ **Error**: Page version was not updated. Current: {new_version}, Expected: {current_version + 1}"
+                        error_msg = f"Page version was not updated. Current: {new_version}, Expected: {current_version + 1}"
+                        logger.tool_error(error_msg)
+                        return f"❌ **Error**: {error_msg}"
                 except Exception as verify_e:
-                    print(f"⚠️ [WARNING] Could not verify page update: {str(verify_e)}")
+                    logger.tool_warning(f"Could not verify page update: {str(verify_e)}")
                 
-                return f"""✅ **Page Updated Successfully**
+                success_msg = f"""✅ **Page Updated Successfully**
 
 📄 **Page**: {title}
 🆔 **Page ID**: {page_id}
@@ -1137,15 +1158,17 @@ async def upload_to_confluence_shared(
 
 The page has been updated and is now live on Confluence.
 """
+                logger.tool_success(f"Page updated successfully: {title} (ID: {page_id})")
+                return success_msg
                 
             except Exception as e:
-                print(f"❌ [ERROR] Exception during page update: {str(e)}")
+                logger.tool_error(f"Exception during page update: {str(e)}", exc_info=True)
                 return f"❌ **Error updating page**: {str(e)}"
         
         else:
             # Create new page
             try:
-                print(f"🔍 [DEBUG] Creating new page with title: '{title}' in space: '{space_key}'")
+                logger.tool_debug(f"Creating new page with title: '{title}' in space: '{space_key}'")
                 result = confluence.create_page(
                     space=space_key,
                     title=title,
@@ -1153,29 +1176,35 @@ The page has been updated and is now live on Confluence.
                     parent_id=parent_page_id
                 )
                 
-                print(f"🔍 [DEBUG] Create result: {result}")
+                logger.tool_debug(f"Create result: {result}")
                 
                 # Verify the create was successful
                 if not result:
-                    return f"❌ **Error**: Create operation failed - no result returned from Confluence API"
+                    error_msg = "Create operation failed - no result returned from Confluence API"
+                    logger.tool_error(error_msg)
+                    return f"❌ **Error**: {error_msg}"
                 
                 new_page_id = result.get('id')
                 if not new_page_id:
-                    return f"❌ **Error**: Create operation failed - no page ID returned. Result: {result}"
+                    error_msg = f"Create operation failed - no page ID returned. Result: {result}"
+                    logger.tool_error(error_msg)
+                    return f"❌ **Error**: {error_msg}"
                 
                 page_url = f"{os.getenv('CONFLUENCE_URL', '')}/spaces/{space_key}/pages/{new_page_id}"
                 
                 # Verify the page was actually created by fetching it
-                print(f"🔍 [DEBUG] Verifying page creation...")
+                logger.tool_debug("Verifying page creation...")
                 try:
                     created_page = confluence.get_page_by_id(new_page_id, expand='version')
                     if not created_page:
-                        return f"❌ **Error**: Page was not created properly - cannot fetch page with ID {new_page_id}"
-                    print(f"🔍 [DEBUG] Verified page creation: {created_page.get('title', 'No title')}")
+                        error_msg = f"Page was not created properly - cannot fetch page with ID {new_page_id}"
+                        logger.tool_error(error_msg)
+                        return f"❌ **Error**: {error_msg}"
+                    logger.tool_debug(f"Verified page creation: {created_page.get('title', 'No title')}")
                 except Exception as verify_e:
-                    print(f"⚠️ [WARNING] Could not verify page creation: {str(verify_e)}")
+                    logger.tool_warning(f"Could not verify page creation: {str(verify_e)}")
                 
-                return f"""✅ **Page Created Successfully**
+                success_msg = f"""✅ **Page Created Successfully**
 
 📄 **Page**: {title}
 🆔 **New Page ID**: {new_page_id}
@@ -1187,12 +1216,15 @@ The page has been updated and is now live on Confluence.
 
 The new page has been created and is now live on Confluence.
 """
+                logger.tool_success(f"Page created successfully: {title} (ID: {new_page_id})")
+                return success_msg
                 
             except Exception as e:
-                print(f"❌ [ERROR] Exception during page creation: {str(e)}")
+                logger.tool_error(f"Exception during page creation: {str(e)}", exc_info=True)
                 return f"❌ **Error creating page**: {str(e)}"
         
     except Exception as e:
+        logger.tool_error(f"Error uploading to Confluence: {str(e)}", exc_info=True)
         return f"❌ **Error uploading to Confluence**: {str(e)}"
 
 
@@ -1218,7 +1250,8 @@ async def scan_files_by_pattern_shared(
     Returns:
         Formatted string with found files and metadata
     """
-    print(f"🔧 [TOOL] scan_files_by_pattern_shared(repo_path='{repo_path}', filename_patterns={filename_patterns}, path_patterns={path_patterns}, content_keywords={content_keywords})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("scan_files_by_pattern_shared", repo_path=repo_path, filename_patterns=filename_patterns, path_patterns=path_patterns, content_keywords=content_keywords)
     try:
         import fnmatch
         import glob
@@ -1432,7 +1465,8 @@ async def find_code_references_shared(
     Returns:
         Formatted string with all found references and their contexts
     """
-    print(f"🔧 [TOOL] find_code_references_shared(repo_path='{repo_path}', symbol='{symbol}', symbol_type='{symbol_type}', file_extensions={file_extensions})")
+    logger = get_tool_logger(__name__)
+    logger.tool_start("find_code_references_shared", repo_path=repo_path, symbol=symbol, symbol_type=symbol_type, file_extensions=file_extensions)
     try:
         import ast
         

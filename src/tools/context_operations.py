@@ -526,12 +526,21 @@ async def cache_file_content_shared(
             content_dict = json.loads(content_data) if isinstance(content_data, str) else content_data
         except json.JSONDecodeError:
             content_dict = {"raw_content": content_data}
-        
+
+        # Parse metadata (fall back to a note when it is not valid JSON)
+        if metadata:
+            try:
+                metadata_dict = json.loads(metadata) if isinstance(metadata, str) else metadata
+            except json.JSONDecodeError:
+                metadata_dict = {"note": metadata}
+        else:
+            metadata_dict = {}
+
         # Cache the file content
         shared_context["content_cache"][file_path] = {
             "content_data": content_dict,
             "cached_at": datetime.now().isoformat(),
-            "metadata": json.loads(metadata) if metadata else {}
+            "metadata": metadata_dict
         }
         
         shared_context["last_updated"] = datetime.now().isoformat()
